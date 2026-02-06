@@ -216,7 +216,7 @@
       gap: 14px;
     }
 
-    .card {
+.card {
       background: rgba(255, 255, 255, 0.85);
       border: 1px solid rgba(198, 160, 107, 0.28);
       border-radius: 22px;
@@ -227,6 +227,8 @@
       box-shadow: 0 12px 28px rgba(73, 58, 47, 0.1);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       cursor: pointer;
+      color: var(--ink); /* 新增這行：確保文字顏色統一 */
+      text-align: left; /* 新增這行：確保內容靠左對齊 */
     }
 
     .card:hover {
@@ -601,9 +603,8 @@
         <div class="logo-wrap">
           <img src="logo.png" alt="喵之谷 Logo">
         </div>
-        <h1 class="title">喵之谷</h1>
+<h1 class="title">喵之谷</h1>
         <p class="handwrite font-en">Meow Valley</p>
-        <div class="license-tag">特寵業許可證字號：S1140024</div>
       </div>
 
       <div class="cards">
@@ -650,10 +651,13 @@
             <span>LINE</span>
           </a>
         </div>
-        <a class="addr" href="https://maps.app.goo.gl/m7wQdKVCuVQXgKgL6" target="_blank">
+<a class="addr" href="https://maps.app.goo.gl/m7wQdKVCuVQXgKgL6" target="_blank">
           <i data-lucide="map-pin"></i>
           臺中市豐原區水源路7巷192號
         </a>
+        <div style="margin-top: 12px; font-size: 0.72rem; color: var(--sub); letter-spacing: 0.15em;">
+          特寵業繁字第S1140024號
+        </div>
       </div>
     </section>
 
