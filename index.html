@@ -10,8 +10,492 @@
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ichitenfont/I.MingWebfont/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ichitenfont/I.MingWebfont/index.css">
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+<script type="text/babel">
+  const { useState, useEffect, useRef } = React;
+
+  // --- 子元件 1：首頁畫面 ---
+  const HomeView = ({ onNavigate }) => (
+    <section className="glass-panel animate-in fade-in duration-500">
+      <div className="hero">
+        <div className="logo-wrap">
+          <img src="logo.png" alt="Logo" />
+        </div>
+        <h1 className="title">喵之谷</h1>
+        <p className="handwrite font-en opacity-60">Meow Valley</p>
+      </div>
+
+      <div className="cards">
+        <button className="card grooming" onClick={() => onNavigate('grooming')}>
+          <div className="icon-pill"><i data-lucide="scissors"></i></div>
+          <div>
+            <h3 className="card-title">純貓美容</h3>
+            <p className="card-sub font-en text-[10px]">Cat Grooming</p>
+          </div>
+          <i className="arrow" data-lucide="arrow-right"></i>
+        </button>
+
+        <button className="card boarding" onClick={() => onNavigate('boarding')}>
+          <div className="icon-pill"><i data-lucide="home"></i></div>
+          <div>
+            <h3 className="card-title">純貓住宿</h3>
+            <p className="card-sub font-en text-[10px]">Cat Hotel</p>
+          </div>
+          <i className="arrow" data-lucide="arrow-right"></i>
+        </button>
+
+        <button className="card maine" onClick={() => onNavigate('mainecoon')}>
+          <div className="icon-pill"><i data-lucide="cat"></i></div>
+          <div>
+            <h3 className="card-title">緬因貓詢問</h3>
+            <p className="card-sub font-en text-[10px]">Maine Coon Inquiry</p>
+          </div>
+          <i className="arrow" data-lucide="arrow-right"></i>
+        </button>
+      </div>
+
+      <div className="footer mt-10">
+        <div className="socials">
+          <a href="https://www.instagram.com/meow_valley2025" target="_blank"><i data-lucide="instagram"></i></a>
+          <a href="https://www.facebook.com/profile.php?id=61577336540564" target="_blank"><i data-lucide="facebook"></i></a>
+          <a href="https://line.me/R/ti/p/@463mpova" target="_blank"><img src="line.png" className="w-5 h-5" /></a>
+        </div>
+        <p className="text-[10px] mt-4 opacity-50 tracking-widest">特寵業繁字第 S1140024 號</p>
+      </div>
+    </section>
+  );
+
+  // --- 子元件 2：通用條款彈窗 ---
+  const TermsModal = ({ title, children, onClose }) => (
+    <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-[#fcfaf8] rounded-[32px] w-full max-w-lg max-h-[80vh] flex flex-col border-2 border-white shadow-2xl">
+        <div className="p-6 border-b border-milk-soft flex justify-between items-center">
+          <h3 className="font-black text-ink">{title}</h3>
+          <button onClick={onClose} className="p-2 bg-milk-soft/20 rounded-full"><i data-lucide="x"></i></button>
+        </div>
+        <div className="p-8 overflow-y-auto text-sm leading-relaxed text-gray-700 font-sans">
+          {children}
+        </div>
+        <div className="p-6 border-t border-milk-soft">
+          <button onClick={onClose} className="w-full py-4 bg-milk-deep text-white rounded-2xl font-bold shadow-lg">確認並關閉</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // --- 子元件 3：全螢幕簽名板 ---
+  const SignatureModal = ({ onSave, onClose }) => {
+    const canvasRef = useRef(null);
+    let drawing = false;
+
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = canvas.offsetWidth * ratio;
+      canvas.height = canvas.offsetHeight * ratio;
+      ctx.scale(ratio, ratio);
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#4a3f36';
+
+      const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      };
+      const start = (e) => { drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); };
+      const move = (e) => { if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); };
+      const stop = () => { drawing = false; };
+
+      canvas.addEventListener('mousedown', start);
+      canvas.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', stop);
+      canvas.addEventListener('touchstart', start, {passive:false});
+      canvas.addEventListener('touchmove', move, {passive:false});
+      canvas.addEventListener('touchend', stop);
+      return () => window.removeEventListener('mouseup', stop);
+    }, []);
+
+    return (
+      <div className="fixed inset-0 bg-ink/90 z-[120] flex flex-col items-center justify-center p-4 backdrop-blur-md">
+        <div className="bg-white rounded-[40px] p-6 w-full max-w-xl shadow-2xl">
+          <h3 className="text-center mb-6 font-black text-ink tracking-widest">甲方 (飼主) 簽署區</h3>
+          <canvas ref={canvasRef} className="bg-gray-50 border-2 border-dashed border-milk-soft rounded-[30px] touch-none w-full h-64 shadow-inner" />
+          <div className="grid grid-cols-3 gap-3 mt-6">
+            <button className="py-4 bg-gray-100 rounded-2xl font-bold" onClick={onClose}>取消</button>
+            <button className="py-4 bg-gray-100 rounded-2xl font-bold text-red-500" onClick={() => {
+              const ctx = canvasRef.current.getContext('2d');
+              ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            }}>重簽</button>
+            <button className="py-4 bg-milk-deep text-white rounded-2xl font-bold" onClick={() => onSave(canvasRef.current.toDataURL())}>完成簽名</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // --- 子元件 4：專業版契約表單 ---
+  const ContractForm = ({ title, type, onBack }) => {
+const [formData, setFormData] = useState({
+      ownerName: '', phone: '', idNumber: '', email: '', address: '',
+      emerName: '', emerRel: '', emerPhone: '',
+petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
+      chip: '', chipNum: '', behavior: [], healthHistory: '', prefHospital: '',
+      agreeTerms: false, agreeHighRisk: false,
+      lineConfirmed: false 
+    });
+    const [showSig, setShowSig] = useState(false);
+    const [sigImage, setSigImage] = useState(null);
+    const [activeModal, setActiveModal] = useState(null);
+
+    const handleChange = (e) => {
+      const { name, value, type, checked } = e.target;
+      setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    };
+
+    const handleFinalSubmit = () => {
+      if(!formData.agreeTerms || !formData.agreeHighRisk) return alert("請勾選同意相關條款");
+      if(!formData.ownerName || !sigImage) return alert("請填寫姓名並完成簽名");
+      alert("✅ 契約準備就緒！");
+    };
+
+    return (
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
+<div className="px-2 mb-6">
+          <h2 className="text-2xl font-black text-ink tracking-tight">{title}</h2>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-sub font-bold opacity-60">Agreement Profile</p>
+        </div>
+
+{/* LINE 預約引導盒 (最終融合定案版 - 細節還原) */}
+<div className="mx-2 mb-10 bg-white/80 border-2 border-milk-soft rounded-[28px] p-6 shadow-lg shadow-milk/20 animate-in fade-in zoom-in-95 duration-500">
+  
+  {/* 主標題區塊 */}
+  <div className="text-center">
+    <span className="bg-milk-deep text-white text-[10px] font-black px-3 py-1 rounded-full tracking-widest">STEP 1</span>
+    <h3 className="text-xl font-black text-ink mt-3 tracking-wider">加入官方 LINE</h3>
+    <p className="text-sm text-milk-deep mt-1 font-bold tracking-widest ">ID: ＠463mpova</p>
+  </div>
+
+  {/* 步驟說明區塊 (加入 relative 和 overflow-hidden 以容納貓貓) */}
+  <div className="mt-6 border-2 border-dashed border-milk-soft rounded-2xl p-5 space-y-4 relative overflow-hidden">
+    
+    {/* 步驟 1：點擊加入 */}
+    <a href="https://line.me/R/ti/p/@463mpova" target="_blank" className="flex items-center gap-4 group text-left no-underline transition-transform active:scale-[0.98]">
+      <div className="bg-[#06C755] text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-black shadow-sm shrink-0">1</div>
+      <div className="flex-1">
+        <p className="font-bold text-ink">點擊加入好友</p>
+      </div>
+      <img src="line.png" className="w-6 h-6 ml-auto opacity-80 group-hover:opacity-100 transition-opacity" alt="LINE" />
+    </a>
+    
+    {/* 步驟 2：傳送貼圖*/}
+    <div className="flex items-start gap-4 text-left">
+      <div className="bg-[#b78963] text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-black shadow-sm shrink-0">2</div>
+      <div className="flex-1">
+        <p className="font-bold text-ink leading-relaxed">
+          務必傳送貼圖✨
+          <span className="block text-xs text-sub font-normal mt-0.5">這樣我們才能找到您哦！</span>
+        </p>
+      </div>
+    </div>
+
+    <div className="absolute -right-2 -bottom-2 opacity-[0.4] rotate-12 pointer-events-none">
+      <i data-lucide="cat" className="w-16 h-16 text-[#b78963]"></i>
+    </div>
+
+  </div>
+
+<div className="mt-5">
+  <label 
+      htmlFor="lineConfirmCheckbox" 
+      className="flex items-center w-full gap-4 p-4 rounded-xl border-2 border-milk-soft bg-white/50 cursor-pointer group hover:border-milk-deep transition-colors">
+    <input 
+      type="checkbox" 
+      id="lineConfirmCheckbox"
+      name="lineConfirmed" 
+      checked={formData.lineConfirmed} 
+      onChange={handleChange} 
+      className="sr-only"
+    />
+    <div
+      className="w-6 h-6 border-2 rounded-lg flex items-center justify-center shrink-0 transition-all"
+      style={{
+        backgroundColor: formData.lineConfirmed ? 'var(--milk-deep)' : 'transparent',
+        borderColor: formData.lineConfirmed ? 'var(--milk-deep)' : 'var(--milk-soft)'
+      }}
+    >
+      <span
+        className="text-base font-black font-sans transition-opacity"
+        style={{ color: '#fff', opacity: formData.lineConfirmed ? 1 : 0 }}
+      >
+        ✓
+      </span>
+    </div>
+    <span className="text-sub">
+      我已確認加入好友並傳送貼圖
+    </span>
+  </label>
+</div>
+
+        
+        </div>{/* 區塊 1：甲方飼主資料 */}
+        <div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-6 text-milk-deep">
+            <div className="bg-milk-soft/30 p-1.5 rounded-lg">
+              <i data-lucide="user" className="w-4 h-4"></i>
+            </div>
+            <span className="text-xs font-black uppercase tracking-[0.2em]">(甲方)飼主基本資料</span>
+          </div>
+
+          <div className="space-y-5">
+            {/* 姓名與電話並排 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">姓名 / Name</label>
+                <input type="text" name="ownerName" placeholder="填寫完整姓名" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電話 / Mobile</label>
+                <input type="tel" name="phone" placeholder="09xx-xxxxxx" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
+              </div>
+            </div>
+
+            {/* 身分證字號 */}
+            <div className="form-group">
+              <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">身分證字號 / ID Number</label>
+              <input type="text" name="idNumber" placeholder="請填寫身分證字號" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
+            </div>
+
+            {/* 電子郵件 */}
+            <div className="form-group">
+              <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電子郵件 / E-mail</label>
+              <input type="email" name="email" placeholder="寄送契約副本用" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
+            </div>
+
+            {/* 通訊地址 */}
+            <div className="form-group">
+              <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">通訊地址 / Address</label>
+              <input type="text" name="address" placeholder="請填寫完整地址" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
+            </div>
+
+            {/* 緊急聯絡人區塊 */}
+            <div className="mt-8 pt-6 border-t border-milk-soft/50">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-[10px] font-black text-milk-deep uppercase tracking-widest bg-milk-soft/20 px-2 py-0.5 rounded">緊急聯絡人</span>
+                <span className="text-[9px] text-sub opacity-70">(聯絡不到飼主時)</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="form-group">
+                  <label className="text-[9px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人姓名</label>
+                  <input type="text" name="emerName" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
+                </div>
+                <div className="form-group">
+                  <label className="text-[9px] font-bold text-sub ml-1 mb-1 block uppercase">關係</label>
+                  <input type="text" name="emerRel" placeholder="如: 配偶、家人" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="text-[9px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人電話</label>
+                <input type="tel" name="emerPhone" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+{/* 區塊 2：毛孩基本資料與健康評估 (按鈕化設計) */}
+        <div className="bg-white/60 backdrop-blur-md border border-white rounded-[32px] p-6 mb-6 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-2 mb-8 text-milk-deep">
+            <div className="bg-milk-soft/30 p-1.5 rounded-lg">
+              <i data-lucide="cat" className="w-4 h-4"></i>
+            </div>
+            <span className="text-xs font-black uppercase tracking-[0.2em]">毛孩詳細資料與評估</span>
+          </div>
+
+          <div className="space-y-7">
+            {/* 名字、品種、體重、年齡 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="form-group">
+                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">毛孩姓名 / Name</label>
+                <input type="text" name="petName"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">品種 / Breed</label>
+                <input type="text" name="breed"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">體重 / Weight (kg)</label>
+                <input type="number" name="weight"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
+              </div>
+              <div className="form-group">
+                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">年齡 / Age</label>
+                <input type="text" name="age"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
+              </div>
+            </div>
+
+{/* 性別 (按鈕設計) */}
+            <div className="form-group">
+              <label className="text-[10px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">性別 / Gender</label>
+              <div className="grid grid-cols-2 gap-2">
+                {['公', '母'].map(val => (
+                  <button key={val} type="button" onClick={() => setFormData({...formData, gender: val})} className={`btn-choice ${formData.gender === val ? 'active' : ''}`}>{val === '公' ? '♂ 公' : '♀ 母'}</button>
+                ))}
+              </div>
+            </div>
+
+{/* 結紮 (按鈕設計) */}
+            <div className="form-group">
+              <label className="text-[10px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">結紮 / Neutered</label>
+              <div className="grid grid-cols-2 gap-2">
+                {['是', '否'].map(val => (
+                  <button key={val} type="button" onClick={() => setFormData({...formData, neutered: val})} className={`btn-choice ${formData.neutered === val ? 'active' : ''}`}>{val}</button>
+                ))}
+              </div>
+            </div>
+
+{/* 晶片資訊 (按鈕設計) */}
+            <div className="form-group">
+              <label className="text-[10px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">晶片資訊 / Microchip</label>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {[
+                  {k:'有', l:'有晶片'}, 
+                  {k:'不詳', l:'有晶片(號碼不詳)'}, 
+                  {k:'無', l:'無晶片'}
+                ].map(item => (
+                  <button key={item.k} type="button" onClick={() => setFormData({...formData, chip: item.k})} className={`btn-choice ${formData.chip === item.k ? 'active' : ''}`}>{item.l}</button>
+                ))}
+              </div>
+              {formData.chip === '有' && (
+                <input type="text" name="chipNum" placeholder="請輸入 15 位晶片號碼" className="w-full bg-white border border-milk-deep/30 rounded-xl p-3 text-sm outline-none animate-in zoom-in-95 duration-200" onChange={handleChange} />
+              )}
+            </div>
+
+{/* 性情與攻擊性評估 (按鈕設計) */}
+            <div className="form-group">
+              <label className="text-[10px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">性情評估 / Behavior (可複選)</label>
+              <div className="flex flex-wrap gap-2">
+                {['親近人', '容易緊張', '有攻擊性', '會咬人', '不會咬人', '其他'].map(val => (
+                  <button key={val} type="button" onClick={() => {
+                    const current = Array.isArray(formData.behavior) ? formData.behavior : [];
+                    const next = current.includes(val) ? current.filter(i => i !== val) : [...current, val];
+                    setFormData({...formData, behavior: next});
+                  }} className={`btn-choice rounded-full px-4 ${Array.isArray(formData.behavior) && formData.behavior.includes(val) ? 'active' : ''}`}>{val}</button>
+                ))}
+              </div>
+              {(Array.isArray(formData.behavior) && formData.behavior.includes('其他')) && (
+                <input type="text" name="behaviorOther" placeholder="請描述其他情況" className="w-full mt-2 bg-white border border-milk-soft rounded-xl p-3 text-sm outline-none" onChange={handleChange} />
+              )}
+            </div>
+
+{/* 過往病史 (按鈕設計) */}
+            <div className="form-group">
+<label className="text-[10px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">過往病史 / Past Medical History <span className="text-orange-600 font-black ml-1">請務必如實告知!</span></label>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {['有', '無'].map(val => (
+                  <button key={val} type="button" onClick={() => setFormData({...formData, healthHistory: val})} className={`btn-choice ${formData.healthHistory === val ? 'active' : ''}`}>{val}</button>
+                ))}
+              </div>
+              <textarea name="healthNote" rows="2" placeholder="食物/藥物過敏史、手術史或其他注意事項..." className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange}></textarea>
+            </div>
+<div className="mb-1.5">
+<label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">指定就醫診療機構 (若未填寫，則依店家特約醫院)</label>
+              <input type="text" name="prefHospital" placeholder="若未填寫，則依店家特約醫院" className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm outline-none focus:border-milk-deep transition-all" onChange={handleChange} />
+            </div>
+            
+            <div className="bg-orange-50/60 border border-orange-100/80 rounded-[24px] p-5 flex gap-4 items-start shadow-sm relative overflow-hidden group">
+              {/* 背景微裝飾 */}
+              <div className="absolute -right-2 -bottom-2 opacity-5 group-hover:scale-110 transition-transform"><i data-lucide="hospital" className="w-16 h-16 text-orange-900"></i></div>
+              <div className="mt-1 bg-white p-2.5 rounded-xl shadow-sm"><i data-lucide="hospital" className="w-5 h-5 text-orange-400"></i></div>
+              <div className="relative z-10">
+                <p className="text-[10px] font-black text-orange-800 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                  <span className="w-1 h-3 bg-orange-400 rounded-full"></span> 乙方特約醫院
+                </p>
+                <p className="font-bold text-sm text-orange-900 mb-0.5">新生動物醫院 (04-25257658)</p>
+                <p className="text-[11px] text-orange-800/60 leading-tight">台中市豐原區新生北路59號</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-orange-50/40 border border-orange-100 rounded-[24px] p-5 mb-5">
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 p-2 cursor-pointer"><input type="checkbox" name="agreeTerms" checked={formData.agreeTerms} onChange={handleChange} className="w-5 h-5 accent-milk-deep" /><span className="text-sm">同意 <button onClick={() => setActiveModal('terms')} className="text-milk-deep underline font-bold">服務契約</button></span></label>
+            <label className="flex items-center gap-3 p-2 cursor-pointer"><input type="checkbox" name="agreeHighRisk" checked={formData.agreeHighRisk} onChange={handleChange} className="w-5 h-5 accent-red-500" /><span className="text-sm">同意 <button onClick={() => setActiveModal('highrisk')} className="text-red-500 underline font-bold">高風險聲明</button></span></label>
+          </div>
+        </div>
+
+        <div className="px-2 mb-8">
+          <p className="text-[10px] font-bold text-sub mb-2 uppercase tracking-widest text-center">甲方 (飼主) 數位簽署</p>
+          <div className="sig-preview-area bg-white/80 border-2 border-dashed border-milk rounded-3xl h-32 flex items-center justify-center overflow-hidden" onClick={() => setShowSig(true)}>
+            {sigImage ? <img src={sigImage} className="max-h-full" /> : <p className="text-[10px] text-sub">點擊簽名</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 px-2">
+          <button className="py-4 bg-white/50 text-sub rounded-2xl font-bold shadow-sm" onClick={onBack}>返回</button>
+          <button className={`py-4 rounded-2xl font-bold shadow-lg ${(!formData.agreeTerms || !formData.agreeHighRisk || !sigImage) ? 'bg-gray-300 text-white' : 'bg-milk-deep text-white'}`} onClick={handleFinalSubmit}>確認送出</button>
+        </div>
+
+        {activeModal === 'highrisk' && (
+          <TermsModal title="高風險寵物美容聲明" onClose={() => setActiveModal(null)}>
+            <div className="space-y-4">
+              <p>1. 飼主確認已如實告知寵物病史（心臟病、癲癇、過敏等）。</p>
+              <p>2. 美容過程若因寵物自身健康誘發風險，由飼主自負責任。</p>
+              <p>3. 緊急狀況授權送往醫療機構，費用由飼主負擔。</p>
+            </div>
+          </TermsModal>
+        )}
+        {showSig && <SignatureModal onSave={(data) => { setSigImage(data); setShowSig(false); }} onClose={() => setShowSig(false)} />}
+      </div>
+    );
+  };
+
+  // --- 主程式：控制中心 ---
+  function App() {
+    const getHash = () => window.location.hash.replace('#', '') || 'home';
+    const [view, setView] = useState(getHash());
+
+    useEffect(() => {
+      const handlePopState = () => setView(getHash());
+      window.addEventListener('hashchange', handlePopState);
+      lucide.createIcons();
+      return () => window.removeEventListener('hashchange', handlePopState);
+    }, [view]);
+
+    const navigateTo = (v) => { window.location.hash = v; };
+
+    return (
+      <div className="min-h-screen">
+        <nav>
+          <div className="nav-inner">
+            <div className="brand" onClick={() => navigateTo('home')}>
+              <img src="logo.png" alt="Logo" />
+              <span className="font-black text-ink tracking-tighter">喵之谷</span>
+            </div>
+            <button className="home-btn" onClick={() => navigateTo('home')}>HOME</button>
+          </div>
+        </nav>
+        <main className="wrap">
+          {view === 'home' && <HomeView onNavigate={navigateTo} />}
+          {view === 'grooming' && <ContractForm title="純貓美容契約" type="grooming" onBack={() => navigateTo('home')} />}
+          {view === 'boarding' && <ContractForm title="純貓住宿契約" type="boarding" onBack={() => navigateTo('home')} />}
+        </main>
+      </div>
+    );
+  }
+
+  // 渲染到網頁
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<App />);
+</script>
 
   <style>
     @font-face {
@@ -21,9 +505,10 @@
       font-style: normal;
       font-display: swap;
     }
-    :root {
+:root {
       --bg: #f6efe7;
       --bg-2: #f3e6dc;
+      --line-green: #52b788;
       --milk: #d7b899;
       --milk-deep: #b78963;
       --milk-soft: #ead6c3;
@@ -33,7 +518,32 @@
       --stroke: rgba(255, 255, 255, 0.65);
     }
 
+    /* 全域按鈕基礎樣式 */
+    .btn-choice {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.6rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      transition: all 0.2s;
+      border: 2px solid var(--milk-soft);
+      background: var(--glass);
+      color: var(--sub);
+      cursor: pointer;
+    }
+
+    /* 選中狀態樣式：強制讓文字變深，邊框變厚變深 */
+    .btn-choice.active {
+      border-color: var(--milk-deep) !important;
+      color: var(--milk-deep) !important;
+      background-color: rgba(183, 137, 99, 0.1) !important; /* 基於 milk-deep 的淡背景 */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+
     * { box-sizing: border-box; }
+    button, a, label { -webkit-tap-highlight-color: transparent; }
     .hidden { display: none !important; }
 
     body {
@@ -497,85 +1007,84 @@
       font-size: 0.85rem;
     }
 
-    .field textarea {
+.field textarea {
       min-height: 80px;
       resize: vertical;
     }
 
-    .checklist {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      font-size: 0.75rem;
-      color: var(--sub);
+    /* 簽名板全螢幕樣式 */
+    #signature-overlay {
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
     }
-
-    .checklist span {
-      padding: 6px 10px;
+    #signature-canvas {
+      flex: 1;
+      cursor: crosshair;
+      touch-action: none;
+    }
+    .sig-tools {
+      padding: 20px;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      background: var(--bg);
+      border-top: 1px solid var(--milk);
+    }
+    .sig-btn {
+      padding: 12px 30px;
       border-radius: 999px;
-      border: 1px dashed rgba(183, 137, 99, 0.45);
-      background: rgba(255, 255, 255, 0.7);
+      border: none;
+      font-family: "JasonHandwriting";
+      font-size: 1rem;
+      cursor: pointer;
     }
+    .sig-confirm { background: var(--milk-deep); color: #fff; }
+    .sig-clear { background: var(--milk-soft); color: var(--ink); }
 
-    .price-table {
+    .sig-preview-area {
       width: 100%;
-      border-collapse: collapse;
-      font-size: 0.8rem;
-      color: var(--ink);
-    }
-
-    .price-table th,
-    .price-table td {
-      padding: 8px 6px;
-      text-align: left;
-      border-bottom: 1px dashed rgba(183, 137, 99, 0.25);
-    }
-
-    .price-table th {
-      color: var(--milk-deep);
-      letter-spacing: 0.12em;
-      font-size: 0.75rem;
-    }
-
-    .note {
-      font-size: 0.75rem;
-      color: var(--sub);
-      line-height: 1.6;
-    }
-
-    .agreement {
+      height: 120px;
+      border: 2px dashed var(--milk);
+      border-radius: 15px;
       display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      background: rgba(255, 245, 236, 0.7);
-      border: 1px solid rgba(215, 184, 153, 0.35);
-      font-size: 0.78rem;
-      color: var(--ink);
-    }
-
-    .agreement input {
-      margin-top: 3px;
-    }
-
-    .signature {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.5);
+      cursor: pointer;
       margin-top: 10px;
     }
+    .sig-preview-area img { max-height: 100%; }
 
-    .tag {
-      display: inline-flex;
+    .checklist-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+      margin-top: 5px;
+    }
+    .check-item {
+      display: flex;
       align-items: center;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(215, 184, 153, 0.2);
-      border: 1px solid rgba(183, 137, 99, 0.3);
-      font-size: 0.72rem;
+      gap: 5px;
+      font-size: 0.85rem;
+    }
+
+    .price-block {
+      background: #fff;
+      border-radius: 15px;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid var(--milk-soft);
+    }
+    .price-title {
+      font-weight: bold;
       color: var(--milk-deep);
-      letter-spacing: 0.12em;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--bg);
+      padding-bottom: 4px;
     }
 
     @media (max-width: 520px) {
@@ -586,106 +1095,8 @@
     }
   </style>
 </head>
+
 <body class="style-sweet">
-  <nav>
-    <div class="nav-inner">
-      <div class="brand" onclick="router('home')">
-        <img src="logo.png" alt="喵之谷 Logo">
-        <span>喵之谷</span>
-      </div>
-      <button class="home-btn" onclick="router('home')">HOME</button>
-    </div>
-  </nav>
-
-  <main class="wrap">
-    <section id="view-home" class="glass-panel">
-      <div class="hero">
-        <div class="logo-wrap">
-          <img src="logo.png" alt="喵之谷 Logo">
-        </div>
-<h1 class="title">喵之谷</h1>
-        <p class="handwrite font-en">Meow Valley</p>
-      </div>
-
-      <div class="cards">
-        <button class="card grooming" onclick="router('grooming')">
-          <div class="icon-pill"><i data-lucide="scissors"></i></div>
-          <div>
-            <h3 class="card-title">純貓美容</h3>
-            <p class="card-sub font-en">Cat Grooming</p>
-          </div>
-          <i class="arrow" data-lucide="arrow-right"></i>
-        </button>
-
-        <button class="card boarding" onclick="router('boarding')">
-          <div class="icon-pill"><i data-lucide="home"></i></div>
-          <div>
-            <h3 class="card-title">純貓住宿</h3>
-            <p class="card-sub font-en">Cat Hotel</p>
-          </div>
-          <i class="arrow" data-lucide="arrow-right"></i>
-        </button>
-
-        <button class="card maine" onclick="router('mainecoon')">
-          <div class="icon-pill"><i data-lucide="cat"></i></div>
-          <div>
-            <h3 class="card-title">緬因貓詢問</h3>
-            <p class="card-sub font-en">Maine Coon Inquiry</p>
-          </div>
-          <i class="arrow" data-lucide="arrow-right"></i>
-        </button>
-      </div>
-
-      <div class="footer">
-        <div class="socials">
-          <a href="https://www.instagram.com/meow_valley2025?igsh=MWNyaWhxZjQ2OGRhdg%3D%3D&utm_source=qr" target="_blank">
-            <i data-lucide="instagram"></i>
-            <span>Instagram</span>
-          </a>
-          <a href="https://www.facebook.com/profile.php?id=61577336540564&mibextid=wwXIfr&rdid=f3BtSChGscS4Yd5O&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F17Va8DnL8A%2F%3Fmibextid%3DwwXIfr#" target="_blank">
-            <i data-lucide="facebook"></i>
-            <span>Facebook</span>
-          </a>
-          <a href="https://line.me/R/ti/p/@463mpova?oat_content=url&ts=02031808" target="_blank">
-            <img src="line.png" alt="LINE" class="line-img">
-            <span>LINE</span>
-          </a>
-        </div>
-<a class="addr" href="https://maps.app.goo.gl/m7wQdKVCuVQXgKgL6" target="_blank">
-          <i data-lucide="map-pin"></i>
-          臺中市豐原區水源路7巷192號
-        </a>
-        <div style="margin-top: 12px; font-size: 0.72rem; color: var(--sub); letter-spacing: 0.15em;">
-          特寵業繁字第S1140024號
-        </div>
-      </div>
-    </section>
-
-    <section id="view-grooming" class="hidden">
-      <h2>純貓美容服務</h2>
-      <p>之後放美容服務與價目內容。</p>
-    </section>
-
-    <section id="view-boarding" class="hidden">
-      <h2>純貓住宿服務</h2>
-      <p>之後放住宿規則與價目內容。</p>
-    </section>
-
-    <section id="view-mainecoon" class="hidden">
-      <h2>緬因貓詢問</h2>
-      <p>幼貓詢問 / 退役貓領養表單。</p>
-    </section>
-  </main>
-
-  <script>
-    lucide.createIcons();
-    function router(view) {
-      const views = ["home", "grooming", "boarding", "mainecoon"];
-      views.forEach(v => document.getElementById("view-" + v).classList.add("hidden"));
-      document.getElementById("view-" + view).classList.remove("hidden");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  </script>
+  <div id="root"></div>
 </body>
 </html>
-
