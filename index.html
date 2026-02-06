@@ -1,11 +1,13 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>喵之谷 Meow Valley</title>
   <link rel="icon" href="logo.png" type="image/png" />
-
+  <link rel="icon" href="logo.png" type="image/png">
+  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ichitenfont/I.MingWebfont/index.css">
@@ -29,6 +31,8 @@
       --sub: #8a7f74;
       --glass: rgba(255, 255, 255, 0.78);
       --stroke: rgba(255, 255, 255, 0.65);
+      --danger: #e57373;
+      --success: #81c784;
     }
 
     * { box-sizing: border-box; }
@@ -58,6 +62,7 @@
       z-index: -1;
     }
 
+    /* === Navigation === */
     nav {
       position: sticky;
       top: 0;
@@ -103,6 +108,7 @@
       cursor: pointer;
     }
 
+    /* === Layout === */
     .wrap {
       max-width: 620px;
       margin: 0 auto;
@@ -142,6 +148,7 @@
       background: rgba(183, 137, 99, 0.38);
     }
 
+    /* === Home View === */
     .hero {
       text-align: center;
       position: relative;
@@ -154,9 +161,6 @@
       margin: 0 auto 18px;
       display: grid;
       place-items: center;
-      background: transparent;
-      border: none;
-      box-shadow: none;
     }
 
     .logo-wrap img {
@@ -185,13 +189,6 @@
     .font-en {
       font-family: "JasonHandwriting", sans-serif;
       letter-spacing: 0.18em;
-    }
-
-    .tagline {
-      margin: 10px 0 0;
-      color: var(--sub);
-      font-size: 0.75rem;
-      letter-spacing: 0.3em;
     }
 
     .license-tag {
@@ -267,72 +264,7 @@
       color: var(--milk-deep);
     }
 
-    /* Style Variant A: Cute Sweet (default) */
-    body.style-sweet .card {
-      border-radius: 28px;
-      background: #fffdfb;
-      border: 1px solid rgba(215, 184, 153, 0.35);
-      box-shadow: 0 14px 30px rgba(73, 58, 47, 0.12);
-    }
-
-    body.style-sweet .icon-pill {
-      width: 56px;
-      height: 56px;
-      border-radius: 18px;
-      background: #fff5ee;
-      border: 1px solid rgba(215, 184, 153, 0.45);
-      color: var(--milk-deep);
-    }
-
-    body.style-sweet .card-title {
-      font-size: 1.1rem;
-    }
-
-    body.style-sweet .card-sub {
-      font-size: 0.72rem;
-      letter-spacing: 0.12em;
-    }
-
-    /* Style Variant B: Japanese Handmade */
-    body.style-handmade .card {
-      border-radius: 22px;
-      background: linear-gradient(180deg, #fffaf5 0%, #fff6ee 100%);
-      border: 1px solid rgba(215, 184, 153, 0.3);
-      box-shadow: 0 10px 24px rgba(73, 58, 47, 0.09);
-      position: relative;
-      overflow: hidden;
-    }
-
-    body.style-handmade .card::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background-image: radial-gradient(rgba(255, 255, 255, 0.9) 1px, transparent 1px);
-      background-size: 12px 12px;
-      opacity: 0.25;
-      pointer-events: none;
-    }
-
-    body.style-handmade .icon-pill {
-      width: 52px;
-      height: 52px;
-      border-radius: 14px;
-      background: #fffaf4;
-      border: 1px dashed rgba(200, 165, 130, 0.6);
-      color: var(--milk-deep);
-    }
-
-    body.style-handmade .card-title {
-      font-family: "JasonHandwriting", sans-serif;
-      font-size: 1.08rem;
-      letter-spacing: 0.16em;
-    }
-
-    body.style-handmade .card-sub {
-      font-size: 0.7rem;
-      letter-spacing: 0.14em;
-    }
-
+    /* === Footer === */
     .footer {
       text-align: center;
       margin-top: 22px;
@@ -390,10 +322,436 @@
       text-decoration: none;
     }
 
+    /* === Page View (Forms) === */
+    .page {
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      border-radius: 28px;
+      padding: 28px 22px 30px;
+      box-shadow: 0 16px 34px rgba(73, 58, 47, 0.12);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page::before,
+    .page::after {
+      content: "";
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      border-radius: 999px;
+      filter: blur(40px);
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .page::before {
+      top: -110px;
+      right: -110px;
+      background: rgba(215, 184, 153, 0.45);
+    }
+
+    .page::after {
+      bottom: -110px;
+      left: -110px;
+      background: rgba(183, 137, 99, 0.4);
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-title {
+      margin: 0 0 8px;
+      font-size: 1.8rem;
+      letter-spacing: 0.2em;
+      color: var(--ink);
+    }
+
+    .page-sub {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--sub);
+      letter-spacing: 0.16em;
+    }
+
+    /* === Section === */
+    .section {
+      margin-top: 20px;
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(215, 184, 153, 0.28);
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 1.05rem;
+      letter-spacing: 0.16em;
+      color: var(--milk-deep);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 10px;
+      border-bottom: 2px dashed rgba(215, 184, 153, 0.25);
+    }
+
+    /* === Form Grid === */
+    .form-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      color: var(--sub);
+      letter-spacing: 0.12em;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .field label .required {
+      color: #d9534f;
+      margin-left: 2px;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      border-radius: 14px;
+      border: 2px solid rgba(183, 137, 99, 0.25);
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.95);
+      font-family: "JasonHandwriting", sans-serif;
+      color: var(--ink);
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: var(--milk);
+      background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(215, 184, 153, 0.15);
+    }
+
+    .field textarea {
+      min-height: 90px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    /* === Radio/Checkbox Pills === */
+    .pill-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill-btn {
+      flex: 1;
+      min-width: 100px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 2px solid rgba(183, 137, 99, 0.25);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--sub);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .pill-btn:hover {
+      border-color: var(--milk);
+      color: var(--milk-deep);
+    }
+
+    .pill-btn.active {
+      background: var(--milk-deep);
+      border-color: var(--milk-deep);
+      color: white;
+      box-shadow: 0 4px 12px rgba(183, 137, 99, 0.3);
+    }
+
+    /* === Checkbox Tags === */
+    .tag-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .tag-checkbox {
+      position: relative;
+      display: inline-block;
+    }
+
+    .tag-checkbox input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .tag-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(183, 137, 99, 0.3);
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--sub);
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tag-checkbox input:checked + .tag-label {
+      background: var(--milk-deep);
+      border-color: var(--milk-deep);
+      color: white;
+      box-shadow: 0 2px 8px rgba(183, 137, 99, 0.3);
+    }
+
+    /* === Price Table === */
+    .price-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin-top: 12px;
+    }
+
+    .price-table th,
+    .price-table td {
+      padding: 10px 8px;
+      text-align: left;
+      border-bottom: 1px dashed rgba(183, 137, 99, 0.2);
+    }
+
+    .price-table th {
+      color: var(--milk-deep);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      font-size: 0.78rem;
+    }
+
+    .price-table td {
+      color: var(--ink);
+    }
+
+    .price-highlight {
+      color: var(--milk-deep);
+      font-weight: 700;
+    }
+
+    /* === Note Box === */
+    .note-box {
+      margin-top: 14px;
+      padding: 12px 16px;
+      border-radius: 14px;
+      background: rgba(255, 245, 236, 0.8);
+      border: 1px solid rgba(215, 184, 153, 0.35);
+      font-size: 0.78rem;
+      color: var(--ink);
+      line-height: 1.7;
+    }
+
+    .note-box.warning {
+      background: rgba(255, 235, 235, 0.8);
+      border-color: rgba(217, 83, 79, 0.35);
+    }
+
+    .note-box strong {
+      color: var(--milk-deep);
+      font-weight: 700;
+    }
+
+    .note-box.warning strong {
+      color: #d9534f;
+    }
+
+    /* === Agreement === */
+    .agreement {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255, 250, 245, 0.9);
+      border: 2px solid rgba(215, 184, 153, 0.35);
+      font-size: 0.82rem;
+      color: var(--ink);
+      margin-top: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .agreement:hover {
+      background: rgba(255, 255, 255, 0.95);
+      border-color: var(--milk);
+    }
+
+    .agreement input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+      cursor: pointer;
+      accent-color: var(--milk-deep);
+    }
+
+    /* === Signature === */
+    .signature-box {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 18px;
+      border: 2px dashed rgba(183, 137, 99, 0.35);
+      background: rgba(255, 255, 255, 0.6);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-height: 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .signature-box:hover {
+      background: rgba(255, 255, 255, 0.85);
+      border-color: var(--milk);
+    }
+
+    .signature-box.has-signature {
+      border-style: solid;
+      border-color: var(--milk-deep);
+      background: white;
+    }
+
+    .signature-box img {
+      max-width: 100%;
+      max-height: 140px;
+      object-fit: contain;
+    }
+
+    .signature-placeholder {
+      color: var(--sub);
+      font-size: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .signature-placeholder i {
+      color: var(--milk);
+    }
+
+    /* === Submit Button === */
+    .submit-btn {
+      width: 100%;
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(135deg, var(--milk-deep) 0%, var(--milk) 100%);
+      color: white;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      cursor: pointer;
+      box-shadow: 0 12px 28px rgba(183, 137, 99, 0.3);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 36px rgba(183, 137, 99, 0.4);
+    }
+
+    .submit-btn:active {
+      transform: scale(0.98);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* === Upload Zone === */
+    .upload-zone {
+      border: 2px dashed rgba(183, 137, 99, 0.35);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.6);
+      margin-top: 10px;
+    }
+
+    .upload-zone:hover {
+      border-color: var(--milk);
+      background: rgba(255, 255, 255, 0.85);
+    }
+
+    .upload-zone.has-file {
+      border-style: solid;
+      border-color: var(--milk-deep);
+      background: rgba(255, 250, 245, 0.9);
+    }
+
+    .upload-icon {
+      color: var(--milk);
+      margin-bottom: 8px;
+    }
+
+    .upload-text {
+      font-size: 0.8rem;
+      color: var(--sub);
+      margin-bottom: 4px;
+    }
+
+    .upload-filename {
+      font-size: 0.85rem;
+      color: var(--milk-deep);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* === Responsive === */
     @media (max-width: 520px) {
-      .title { font-size: 2rem; letter-spacing: 0.22em; }
+      .title { font-size: 1.9rem; letter-spacing: 0.2em; }
       .logo-wrap { width: 130px; height: 130px; }
       .logo-wrap img { width: 130px; height: 130px; }
+      .page-title { font-size: 1.5rem; }
+      .card { padding: 14px 16px; }
+      .icon-pill { width: 48px; height: 48px; }
+      .card-title { font-size: 1rem; }
+      .form-grid { grid-template-columns: 1fr; }
+      .pill-btn { min-width: 80px; font-size: 0.8rem; }
     }
   </style>
 </head>
@@ -409,6 +767,7 @@
   </nav>
 
   <main class="wrap">
+    <!-- ========== HOME VIEW ========== -->
     <section id="view-home" class="glass-panel">
       <div class="hero">
         <div class="logo-wrap">
@@ -422,7 +781,7 @@
       <div class="cards">
         <button class="card grooming" onclick="router('grooming')">
           <div class="icon-pill"><i data-lucide="scissors"></i></div>
-          <div>
+          <div class="card-content">
             <h3 class="card-title">純貓美容</h3>
             <p class="card-sub font-en">Cat Grooming</p>
           </div>
@@ -431,7 +790,7 @@
 
         <button class="card boarding" onclick="router('boarding')">
           <div class="icon-pill"><i data-lucide="home"></i></div>
-          <div>
+          <div class="card-content">
             <h3 class="card-title">純貓住宿</h3>
             <p class="card-sub font-en">Cat Hotel</p>
           </div>
@@ -440,7 +799,7 @@
 
         <button class="card maine" onclick="router('mainecoon')">
           <div class="icon-pill"><i data-lucide="cat"></i></div>
-          <div>
+          <div class="card-content">
             <h3 class="card-title">緬因貓詢問</h3>
             <p class="card-sub font-en">Maine Coon Inquiry</p>
           </div>
@@ -470,32 +829,918 @@
       </div>
     </section>
 
-    <section id="view-grooming" class="hidden">
-      <h2>純貓美容服務</h2>
-      <p>之後放美容服務與價目內容。</p>
+    <!-- ========== GROOMING VIEW ========== -->
+    <section id="view-grooming" class="page hidden">
+      <div class="page-header">
+        <h2 class="page-title">純貓美容契約</h2>
+        <p class="page-sub font-en">Cat Grooming Service Contract</p>
+      </div>
+
+      <form id="grooming-form">
+        <!-- 飼主資料 -->
+        <div class="section">
+          <h3 class="section-title">
+            <i data-lucide="user"></i>
+            飼主資料 (甲方)
+          </h3>
+          <div class="form-grid">
+            <div class="field">
+              <label>姓名 <span class="required">*</span></label>
+              <input type="text" name="owner_name" required>
+            </div>
+            <div class="field">
+              <label>電話 <span class="required">*</span></label>
+              <input type="tel" name="owner_phone" required>
+            </div>
+            <div class="field">
+              <label>身分證字號 <span class="required">*</span></label>
+              <input type="text" name="owner_id" required maxlength="10">
+            </div>
+            <div class="field">
+              <label>電子郵件 <span class="required">*</span></label>
+              <input type="email" name="owner_email" required placeholder="寄送契約副本用">
+            </div>
+          </div>
+          <div class="form-grid" style="margin-top: 14px;">
+            <div class="field" style="grid-column: 1 / -1;">
+              <label>通訊地址 <span class="required">*</span></label>
+              <input type="text" name="owner_address" required>
+            </div>
+          </div>
+
+          <h4 class="section-title" style="margin-top: 20px; font-size: 0.95rem;">
+            <i data-lucide="phone"></i>
+            緊急聯絡人
+          </h4>
+          <div class="form-grid">
+            <div class="field">
+              <label>姓名 <span class="required">*</span></label>
+              <input type="text" name="emergency_name" required>
+            </div>
+            <div class="field">
+              <label>關係</label>
+              <input type="text" name="emergency_relation" placeholder="例：配偶、親屬">
+            </div>
+            <div class="field">
+              <label>電話 <span class="required">*</span></label>
+              <input type="tel" name="emergency_phone" required>
+            </div>
+          </div>
+          <div class="note-box" style="margin-top: 10px; font-size: 0.72rem;">
+            <i data-lucide="info"></i> 僅於聯絡不到飼主時使用
+          </div>
+        </div>
+
+        <!-- 寵物資料 -->
+        <div class="section">
+          <h3 class="section-title">
+            <i data-lucide="cat"></i>
+            寵物資料
+          </h3>
+          <div class="form-grid">
+            <div class="field">
+              <label>寵物名字 <span class="required">*</span></label>
+              <input type="text" name="pet_name" required>
+            </div>
+            <div class="field">
+              <label>品種</label>
+              <input type="text" name="pet_breed" placeholder="例：米克斯、波斯">
+            </div>
+            <div class="field">
+              <label>體重 (kg) <span class="required">*</span></label>
+              <input type="number" name="pet_weight" step="0.1" required>
+            </div>
+            <div class="field">
+              <label>年齡</label>
+              <input type="text" name="pet_age" placeholder="例：2歲3月">
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-top: 14px;">
+            <div class="field">
+              <label>性別 <span class="required">*</span></label>
+              <div class="pill-group">
+                <button type="button" class="pill-btn" data-name="pet_gender" data-value="公">公</button>
+                <button type="button" class="pill-btn" data-name="pet_gender" data-value="母">母</button>
+              </div>
+              <input type="hidden" name="pet_gender" required>
+            </div>
+            <div class="field">
+              <label>結紮 <span class="required">*</span></label>
+              <div class="pill-group">
+                <button type="button" class="pill-btn" data-name="pet_neutered" data-value="是">是</button>
+                <button type="button" class="pill-btn" data-name="pet_neutered" data-value="否">否</button>
+              </div>
+              <input type="hidden" name="pet_neutered" required>
+            </div>
+          </div>
+
+          <div class="field" style="margin-top: 14px;">
+            <label>晶片資訊 <span class="required">*</span></label>
+            <div class="pill-group">
+              <button type="button" class="pill-btn" data-name="pet_chip" data-value="無晶片">無晶片</button>
+              <button type="button" class="pill-btn" data-name="pet_chip" data-value="有晶片(號碼不詳)">有晶片(號碼不詳)</button>
+            </div>
+            <input type="text" name="pet_chip_number" placeholder="或填寫晶片號碼" style="margin-top: 8px;">
+            <input type="hidden" name="pet_chip">
+          </div>
+
+          <div class="field" style="margin-top: 14px;">
+            <label>寵物性情評估</label>
+            <div class="tag-group">
+              <div class="tag-checkbox">
+                <input type="checkbox" id="temp_friendly" value="親近人">
+                <label for="temp_friendly" class="tag-label">
+                  <i data-lucide="smile"></i> 親近人
+                </label>
+              </div>
+              <div class="tag-checkbox">
+                <input type="checkbox" id="temp_nervous" value="容易緊張">
+                <label for="temp_nervous" class="tag-label">
+                  <i data-lucide="alert-circle"></i> 容易緊張
+                </label>
+              </div>
+              <div class="tag-checkbox">
+                <input type="checkbox" id="temp_aggressive" value="有攻擊性">
+                <label for="temp_aggressive" class="tag-label">
+                  <i data-lucide="alert-triangle"></i> 有攻擊性
+                </label>
+              </div>
+              <div class="tag-checkbox">
+                <input type="checkbox" id="temp_bite" value="會咬人">
+                <label for="temp_bite" class="tag-label">
+                  <i data-lucide="x-circle"></i> 會咬人
+                </label>
+              </div>
+              <div class="tag-checkbox">
+                <input type="checkbox" id="temp_nobite" value="不會咬人">
+                <label for="temp_nobite" class="tag-label">
+                  <i data-lucide="check-circle"></i> 不會咬人
+                </label>
+              </div>
+            </div>
+            <input type="text" name="pet_temperament_other" placeholder="其他說明" style="margin-top: 8px;">
+            <input type="hidden" name="pet_temperament">
+          </div>
+
+          <h4 class="section-title" style="margin-top: 20px; font-size: 0.95rem;">
+            <i data-lucide="heart-pulse"></i>
+            健康狀況
+          </h4>
+          <div class="form-grid">
+            <div class="field">
+              <label>過去病史</label>
+              <div class="pill-group">
+                <button type="button" class="pill-btn" data-name="pet_medical_history" data-value="無">無</button>
+                <button type="button" class="pill-btn" data-name="pet_medical_history" data-value="有">有</button>
+              </div>
+              <input type="hidden" name="pet_medical_history">
+            </div>
+          </div>
+          <div class="field" style="margin-top: 10px;">
+            <label>食物及藥物過敏史</label>
+            <textarea name="pet_allergy" placeholder="請詳細說明過敏物質"></textarea>
+          </div>
+          <div class="field">
+            <label>手術史</label>
+            <textarea name="pet_surgery" placeholder="請說明曾進行的手術"></textarea>
+          </div>
+        </div>
+
+        <!-- 美容服務項目 -->
+        <div class="section">
+          <h3 class="section-title">
+            <i data-lucide="scissors"></i>
+            美容服務項目
+          </h3>
+          
+          <div class="note-box">
+            <strong>特約醫院：</strong>新生動物醫院 (04-25257658)<br>
+            地址：台中市豐原區新生北路59號
+          </div>
+
+          <h4 class="section-title" style="margin-top: 16px; font-size: 0.95rem;">基礎洗澡</h4>
+          <table class="price-table">
+            <tr>
+              <th>項目</th>
+              <th>價格</th>
+            </tr>
+            <tr>
+              <td>短毛貓</td>
+              <td class="price-highlight">$700</td>
+            </tr>
+            <tr>
+              <td>中短密毛貓</td>
+              <td class="price-highlight">$900</td>
+            </tr>
+            <tr>
+              <td>長毛貓</td>
+              <td class="price-highlight">$1000</td>
+            </tr>
+            <tr>
+              <td>密長毛貓</td>
+              <td class="price-highlight">$1200</td>
+            </tr>
+          </table>
+
+          <h4 class="section-title" style="margin-top: 16px; font-size: 0.95rem;">精緻洗護 (含全身去油)</h4>
+          <table class="price-table">
+            <tr>
+              <th>項目</th>
+              <th>價格</th>
+            </tr>
+            <tr>
+              <td>短毛貓</td>
+              <td class="price-highlight">$1300</td>
+            </tr>
+            <tr>
+              <td>中短密毛貓</td>
+              <td class="price-highlight">$1600</td>
+            </tr>
+            <tr>
+              <td>長毛貓</td>
+              <td class="price-highlight">$1900</td>
+            </tr>
+            <tr>
+              <td>密長毛貓</td>
+              <td class="price-highlight">$2100</td>
+            </tr>
+          </table>
+
+          <h4 class="section-title" style="margin-top: 16px; font-size: 0.95rem;">剃毛 + 基礎洗澡</h4>
+          <table class="price-table">
+            <tr>
+              <th>項目</th>
+              <th>價格</th>
+            </tr>
+            <tr>
+              <td>短毛貓</td>
+              <td class="price-highlight">$1600</td>
+            </tr>
+            <tr>
+              <td>中短密毛貓</td>
+              <td class="price-highlight">$1600</td>
+            </tr>
+            <tr>
+              <td>長毛貓</td>
+              <td class="price-highlight">$1800</td>
+            </tr>
+            <tr>
+              <td>密長毛貓</td>
+              <td class="price-highlight">$1800</td>
+            </tr>
+          </table>
+
+          <h4 class="section-title" style="margin-top: 16px; font-size: 0.95rem;">單項加購</h4>
+          <div class="tag-group">
+            <div class="tag-checkbox">
+              <input type="checkbox" id="add_nails" value="剪指甲/剃腳底毛">
+              <label for="add_nails" class="tag-label">剪指甲/剃腳底毛 ($150)</label>
+            </div>
+            <div class="tag-checkbox">
+              <input type="checkbox" id="add_ears" value="清耳朵">
+              <label for="add_ears" class="tag-label">清耳朵 ($50)</label>
+            </div>
+            <div class="tag-checkbox">
+              <input type="checkbox" id="add_dematt" value="廢毛處理/拆結">
+              <label for="add_dematt" class="tag-label">廢毛處理/拆結 ($200~$500)</label>
+            </div>
+            <div class="tag-checkbox">
+              <input type="checkbox" id="add_degrease" value="局部去油">
+              <label for="add_degrease" class="tag-label">局部去油 ($200起)</label>
+            </div>
+            <div class="tag-checkbox">
+              <input type="checkbox" id="add_spa" value="碳酸浴">
+              <label for="add_spa" class="tag-label">碳酸浴 ($250起)</label>
+            </div>
+            <div class="tag-checkbox">
+              <input type="checkbox" id="add_nano" value="奈米浴">
+              <label for="add_nano" class="tag-label">奈米浴 ($250起)</label>
+            </div>
+            <div class="tag-checkbox">
+              <input type="checkbox" id="add_herbal" value="天然草本泥浴">
+              <label for="add_herbal" class="tag-label">天然草本泥浴 ($600起)</label>
+            </div>
+          </div>
+
+          <div class="note-box warning" style="margin-top: 16px;">
+            <strong>注意事項：</strong>
+            <ol style="margin: 8px 0; padding-left: 20px;">
+              <li>本館不收有傳染風險貓隻(如：打噴嚏、咳嗽、黴菌、貓瘟、貓白血、體內外寄生蟲感染…等)，若美容期間發現，則收取3000元環境清潔費，如經店家判斷太嚴重須由飼主馬上接回並終止合約（也需付清潔費用，費用由店家規定不得異議）。</li>
+              <li>需於通知完成後30分鐘內接回，30分鐘後每一小時200元，未滿30分鐘以半小時100元計算。</li>
+              <li>體重加價：超過 5kg (含)，每公斤加收 $100。</li>
+            </ol>
+          </div>
+
+          <div class="field" style="margin-top: 16px;">
+            <label>備註需求</label>
+            <textarea name="grooming_notes" placeholder="若有特殊需求或個性貓情緒安撫費需求，請在此說明"></textarea>
+          </div>
+        </div>
+
+        <!-- 契約與簽名 -->
+        <div class="section">
+          <h3 class="section-title">
+            <i data-lucide="file-check"></i>
+            契約確認
+          </h3>
+
+          <label class="agreement">
+            <input type="checkbox" required>
+            <div>
+              <strong>我已閱讀並同意「美容契約」與「高風險寵物美容同意聲明」。</strong><br>
+              <span style="font-size: 0.75rem; color: var(--sub);">針對高齡、幼齡、過往病史或行為敏感寵物之特別約定，包含飼主誠實告知義務、高齡與特殊健康狀況風險、攻擊性與行為安全防護、緊急醫療處置等條款。</span>
+            </div>
+          </label>
+
+          <div class="signature-box" onclick="alert('此處應開啟簽名板 (功能開發中)')">
+            <div class="signature-placeholder">
+              <i data-lucide="pen-tool" size="32"></i>
+              <span>點擊此處簽名</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 業者資訊 -->
+        <div class="section" style="background: rgba(255, 250, 245, 0.6);">
+          <h3 class="section-title">
+            <i data-lucide="store"></i>
+            業者資訊 (乙方)
+          </h3>
+          <div style="font-size: 0.85rem; line-height: 1.8; color: var(--ink);">
+            <strong>店名：</strong>喵之谷<br>
+            <strong>特寵業許可證字號：</strong>S1140024<br>
+            <strong>負責人：</strong>吳秉綸<br>
+            <strong>聯絡電話：</strong>0919-263669<br>
+            <strong>營業時間：</strong>週一至週日 12:00-20:00 (採預約制)<br>
+            <strong>地址：</strong>台中市豐原區水源路7巷192號1、4樓
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">
+          確認送出 <i data-lucide="send"></i>
+        </button>
+      </form>
     </section>
 
-    <section id="view-boarding" class="hidden">
-      <h2>純貓住宿服務</h2>
-      <p>之後放住宿規則與價目內容。</p>
+    <!-- ========== BOARDING VIEW ========== -->
+    <section id="view-boarding" class="page hidden">
+      <div class="page-header">
+        <h2 class="page-title">純貓住宿契約</h2>
+        <p class="page-sub font-en">Cat Boarding Service Contract</p>
+      </div>
+
+      <form id="boarding-form">
+        <!-- 飼主資料 -->
+        <div class="section">
+          <h3 class="section-title">
+            <i data-lucide="user"></i>
+            飼主資料 (甲方)
+          </h3>
+          <div class="form-grid">
+            <div class="field">
+              <label>姓名 <span class="required">*</span></label>
+              <input type="text" name="owner_name" required>
+            </div>
+            <div class="field">
+              <label>電話 <span class="required">*</span></label>
+              <input type="tel" name="owner_phone" required>
+            </div>
+            <div class="field">
+              <label>身分證字號 <span class="required">*</span></label>
+              <input type="text" name="owner_id" required maxlength="10">
+              <span style="font-size: 0.7rem; color: var(--sub);">住宿當日需攜帶核對</span>
+            </div>
+            <div class="field">
+              <label>電子郵件 <span class="required">*</span></label>
+              <input type="email" name="owner_email" required placeholder="寄送契約副本用">
+            </div>
+          </div>
+          <div class="form-grid" style="margin-top: 14px;">
+            <div class="field" style="grid-column: 1 / -1;">
+              <label>通訊地址 <span class="required">*</span></label>
+              <input type="text" name="owner_address" required>
+            </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <label>IG/FB 社群帳號</label>
+              <input type="text" name="owner_social" placeholder="方便聯繫與回傳照片">
+            </div>
+          </div>
+
+          <h4 class="section-title" style="margin-top: 20px; font-size: 0.95rem;">
+            <i data-lucide="phone"></i>
+            緊急聯絡人
+          </h4>
+          <div class="form-grid">
+            <div class="field">
+              <label>姓名 <span class="required">*</span></label>
+              <input type="text" name="emergency_name" required>
+            </div>
+            <div class="field">
+              <label>關係</label>
+              <input type="text" name="emergency_relation" placeholder="例：配偶、親屬">
+            </div>
+            <div class="field">
+              <label>電話 <span class="required">*</span></label>
+              <input type="tel" name="emergency_phone" required>
+            </div>
+          </div>
+        </div>
+
+        <!-- 寵物資料 -->
+        <div class="section">
+          <h3 class="section-title">
+            <i data-lucide="cat"></i>
+            寵物資料
+          </h3>
+          <div class="form-grid">
+            <div class="field">
+              <label>寵物名字 <span class="required">*</span></label>
+              <input type="text" name="pet_name" required>
+            </div>
+            <div class="field">
+              <label>品種</label>
+              <input type="text" name="pet_breed" placeholder="例：米克斯、波斯">
+            </div>
+            <div class="field">
+              <label>體重 (kg) <span class="required">*</span></label>
+              <input type="number" name="pet_weight" step="0.1" required>
+            </div>
+            <div class="field">
+              <label>年齡</label>
+              <input type="text" name="pet_age" placeholder="例：2歲3月">
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-top: 14px;">
+            <div class="field">
+              <label>性別 <span class="required">*</span></label>
+              <div class="pill-group">
+                <button type="button" class="pill-btn" data-name="pet_gender" data-value="公">公</button>
+                <button type="button" class="pill-btn" data-name="pet_gender" data-value="母">母</button>
+              </div>
+              <input type="hidden" name="pet_gender" required>
+            </div>
+            <div class="field">
+              <label>結紮 <span class="required">*</span></label>
+              <div class="pill-group">
+                <button type="button" class="pill-btn" data-name="pet_neutered" data-value="是">是</button>
+                <button type="button" class="pill-btn" data-name="pet_neutered" data-value="否">否</button>
+              </div>
+              <input type="hidden" name="pet_neutered" required>
+            </div>
+          </div>
+
+          <div class="field" style="margin-top: 14px;">
+            <label>晶片資訊 <span class="required">*</span></label>
+            <div class="pill-group">
+              <button type="button" class="pill-btn" data-name="pet_chip" data-value="無晶片">無晶片</button>
+              <button type="button" class="pill-btn" data-name="pet_chip" data-value="有晶片(號碼不詳)">有晶片(號碼不詳)</button>
+            </div>
+            <input type="text" name="pet_chip_number" placeholder="或填寫晶片號碼" style="margin-top: 8px;">
+            <input type="hidden" name="pet_chip">
+          </div>
+
+          <div class="field" style="margin-top: 14px;">
+            <label>寵物性情評估</label>
+            <div class="tag-group">
+              <div class="tag-checkbox">
+                <input type="checkbox" id="btemp_friendly" value="親近人">
+                <label for="btemp_friendly" class="tag-label">親近人</label>
+              </div>
+              <div class="tag-checkbox">
+                <input type="checkbox" id="btemp_nervous" value="容易緊張">
+                <label for="btemp_nervous" class="tag-label">容易緊張</label>
+              </div>
+              <div class="tag-checkbox">
+                <input type="checkbox" id="btemp_aggressive" value="有攻擊性">
+                <label for="btemp_aggressive" class="tag-label">有攻擊性</label>
+              </div>
+              <div class="tag-checkbox">
+                <input type="checkbox" id="btemp_bite" value="會咬人">
+                <label for="btemp_bite" class="tag-label">會咬人</label>
+              </div>
+              <div class="tag-checkbox">
+                <input type="checkbox" id="btemp_cat_friendly" value="親近貓">
+                <label for="btemp_cat_friendly" class="tag-label">親近貓</label>
+              </div>
+              <div class="tag-checkbox">
+                <input type="checkbox" id="btemp_cat_not" value="不親近貓">
+                <label for="btemp_cat_not" class="tag-label">不親近貓</label>
+              </div>
+            </div>
+            <input type="text" name="pet_temperament_other" placeholder="其他說明" style="margin-top: 8px;">
+          </div>
+
+          <h4 class="section-title" style="margin-top: 20px; font-size: 0.95rem;">
+            <i data-lucide="heart-pulse"></i>
+            健康狀況
+          </h4>
+          <div class="form-grid">
+            <div class="field">
+              <label>過去病史</label>
+              <div class="pill-group">
+                <button type="button" class="pill-btn" data-name="pet_medical_history" data-value="無">無</button>
+                <button type="button" class="pill-btn" data-name="pet_medical_history" data-value="有">有</button>
+              </div>
+              <input type="hidden" name="pet_medical_history">
+            </div>
+          </div>
+          <div class="field" style="margin-top: 10px;">
+            <label>食物及藥物過敏史</label>
+            <textarea name="pet_allergy" placeholder="請詳細說明過敏物質"></textarea>
+          </div>
+          <div class="field">
+            <label>手術史</label>
+            <textarea name="pet_surgery" placeholder="請說明曾進行的手術"></textarea>
+          </div>
+          
+          <div class="field" style="margin-top: 10px;">
+            <label>指定就醫診療機構</label>
+            <input type="text" name="designated_hospital" placeholder="若未填寫，則送往乙方特約醫院">
+          </div>
+          <div class="note-box">
+            <strong>乙方特約醫院：</strong>新生動物醫院 (04-25257658)<br>
+            地址：台中市豐原區新生北路59號
+          </div>
+        </div>
+
+        <!-- 住宿服務 -->
+        <div class="section">
+          <h3 class="section-title">
+            <i data-lucide="home"></i>
+            住宿服務
+          </h3>
+          
+          <div class="field">
+            <label>選擇房型 <span class="required">*</span></label>
+            <div class="pill-group">
+              <button type="button" class="pill-btn" data-name="room_type" data-value="套房">套房 ($800/晚)</button>
+              <button type="button" class="pill-btn" data-name="room_type" data-value="1+1房">1+1房 ($1200/晚)</button>
+              <button type="button" class="pill-btn" data-name="room_type" data-value="別墅">別墅 ($1400/晚)</button>
+            </div>
+            <input type="hidden" name="room_type" required>
+          </div>
+
+          <div class="note-box" style="margin-top: 14px;">
+            <strong>住宿卡優惠：</strong>住宿8晚則贈送2晚（加貓➕200元/隻）。
+            <ul style="margin: 8px 0; padding-left: 20px; font-size: 0.75rem;">
+              <li>需一次結清</li>
+              <li>優惠期間：自購買日起一年內，逾期可依每日住宿費用面額折抵（如：原價800元/晚，折價後640元/晚，逾期後則再補足160元/晚，即可訂房入住）</li>
+              <li>除了過年期間都可以使用，連假期間建議提早訂房，以免客滿</li>
+              <li>本卷無記名，如遺失或損毀則不予補發（認卷不認人）</li>
+              <li>本卷僅提供住宿使用，不得折抵商品</li>
+              <li>喵之谷保有修改活動之權利</li>
+            </ul>
+          </div>
+
+          <div class="field" style="margin-top: 14px;">
+            <label>上傳疫苗注射證明 <span class="required">*</span></label>
+            <div class="upload-zone">
+              <i data-lucide="upload" class="upload-icon"></i>
+              <div class="upload-text">點擊或拖曳圖片至此處上傳</div>
+              <div class="upload-filename"></div>
+              <input type="file" accept="image/*" style="display: none;">
+            </div>
+          </div>
+
+          <div class="field" style="margin-top: 14px;">
+            <label>上傳體內外驅蟲證明 <span class="required">*</span></label>
+            <div class="upload-zone">
+              <i data-lucide="upload" class="upload-icon"></i>
+              <div class="upload-text">點擊或拖曳圖片至此處上傳</div>
+              <div class="upload-filename"></div>
+              <input type="file" accept="image/*" style="display: none;">
+            </div>
+          </div>
+
+          <h4 class="section-title" style="margin-top: 20px; font-size: 0.95rem;">飲食習慣調查</h4>
+          <div class="note-box" style="margin-bottom: 10px; font-size: 0.75rem;">
+            <i data-lucide="alert-circle"></i> 需自行攜帶，務必帶乾糧喔
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label>乾糧</label>
+              <select name="food_freq">
+                <option value="一天一次">一天一次</option>
+                <option value="一天兩次" selected>一天兩次</option>
+                <option value="一天三次">一天三次</option>
+                <option value="吃到飽">吃到飽</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>一次餵食量</label>
+              <input type="text" name="food_amount" placeholder="例：半碗、30g">
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-top: 10px;">
+            <div class="field">
+              <label>罐頭</label>
+              <div class="pill-group">
+                <button type="button" class="pill-btn" data-name="can_food" data-value="無">無</button>
+                <button type="button" class="pill-btn" data-name="can_food" data-value="有">有</button>
+              </div>
+              <input type="hidden" name="can_food">
+            </div>
+          </div>
+          <div class="form-grid" id="can_food_detail" style="display: none; margin-top: 8px;">
+            <div class="field">
+              <label>頻率</label>
+              <input type="text" name="can_freq" placeholder="例：一天一次">
+            </div>
+            <div class="field">
+              <label>量</label>
+              <input type="text" name="can_amount" placeholder="例：半罐">
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-top: 10px;">
+            <div class="field">
+              <label>點心</label>
+              <div class="pill-group">
+                <button type="button" class="pill-btn" data-name="treats" data-value="無">無</button>
+                <button type="button" class="pill-btn" data-name="treats" data-value="有">有</button>
+              </div>
+              <input type="hidden" name="treats">
+            </div>
+          </div>
+          <div class="tag-group" id="treats_detail" style="display: none; margin-top: 8px;">
+            <div class="tag-checkbox">
+              <input type="checkbox" id="treat_mush" value="肉泥">
+              <label for="treat_mush" class="tag-label">肉泥</label>
+            </div>
+            <div class="tag-checkbox">
+              <input type="checkbox" id="treat_freeze" value="凍乾">
+              <label for="treat_freeze" class="tag-label">凍乾</label>
+            </div>
+            <input type="text" name="treats_other" placeholder="其他" style="width: 120px; padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(183,137,99,0.3); font-size: 0.8rem;">
+          </div>
+
+          <div class="form-grid" style="margin-top: 10px;">
+            <div class="field">
+              <label>保健品</label>
+              <div class="pill-group">
+                <button type="button" class="pill-btn" data-name="supplements" data-value="無">無</button>
+                <button type="button" class="pill-btn" data-name="supplements" data-value="有">有</button>
+              </div>
+              <input type="hidden" name="supplements">
+            </div>
+          </div>
+          <div class="form-grid" id="supplements_detail" style="display: none; margin-top: 8px;">
+            <div class="field">
+              <label>品項</label>
+              <input type="text" name="supplements_item" placeholder="例：化毛膏">
+            </div>
+            <div class="field">
+              <label>餵食頻率/量</label>
+              <input type="text" name="supplements_dosage" placeholder="例：一天一次，一條">
+            </div>
+          </div>
+
+          <div class="field" style="margin-top: 10px;">
+            <label>貓砂</label>
+            <div class="pill-group">
+              <button type="button" class="pill-btn" data-name="litter" data-value="豆腐砂">豆腐砂</button>
+              <button type="button" class="pill-btn" data-name="litter" data-value="礦砂">礦砂</button>
+              <button type="button" class="pill-btn" data-name="litter" data-value="自備">自備</button>
+            </div>
+            <input type="hidden" name="litter">
+          </div>
+
+          <label class="agreement" style="margin-top: 14px;">
+            <input type="checkbox" name="allow_puree">
+            <div>
+              <strong>肉泥授權：</strong>店家將視情況給予肉泥 (若不同意請勿勾選)。
+            </div>
+          </label>
+        </div>
+
+        <!-- 到府照顧服務 -->
+        <div class="section">
+          <h3 class="section-title">
+            <i data-lucide="map-pin"></i>
+            到府照顧服務 (選填)
+          </h3>
+          
+          <div class="field">
+            <label>服務頻率 <span class="required">*</span></label>
+            <div class="pill-group">
+              <button type="button" class="pill-btn" data-name="visit_freq" data-value="一天一次">一天一次</button>
+              <button type="button" class="pill-btn" data-name="visit_freq" data-value="兩天一次">兩天一次</button>
+              <button type="button" class="pill-btn" data-name="visit_freq" data-value="一天三次">一天三次</button>
+            </div>
+            <input type="hidden" name="visit_freq" required>
+          </div>
+
+          <div id="visit_time_inputs" class="form-grid" style="margin-top: 10px;">
+            <!-- JS will populate time inputs based on frequency -->
+          </div>
+
+          <div class="note-box" style="margin-top: 10px;">
+            價格：依地區報價。<br>
+            特殊照顧服務(另報價)：如有需求請在備註說明。
+          </div>
+
+          <div class="field" style="margin-top: 10px;">
+            <label>備註</label>
+            <textarea name="visit_notes" placeholder="特殊照顧需求或其他說明"></textarea>
+          </div>
+        </div>
+
+        <!-- 契約與簽名 -->
+        <div class="section">
+          <h3 class="section-title">
+            <i data-lucide="file-check"></i>
+            契約確認
+          </h3>
+
+          <label class="agreement">
+            <input type="checkbox" required>
+            <div>
+              <strong>我已閱讀並同意「寄養契約」與「高風險寵物寄養同意聲明」。</strong><br>
+              <span style="font-size: 0.75rem; color: var(--sub);">針對高齡、幼齡、過往病史或行為敏感寵物之特別約定，包含飼主誠實告知義務、高齡與特殊健康狀況風險、攻擊性與行為安全防護、緊急醫療處置等條款。</span>
+            </div>
+          </label>
+
+          <div class="signature-box" onclick="alert('此處應開啟簽名板 (功能開發中)')">
+            <div class="signature-placeholder">
+              <i data-lucide="pen-tool" size="32"></i>
+              <span>點擊此處簽名</span>
+            </div>
+          </div>
+          
+          <div class="field" style="margin-top: 16px;">
+            <label>填寫日期 <span class="required">*</span></label>
+            <input type="date" name="sign_date" required>
+          </div>
+        </div>
+
+        <!-- 業者資訊 -->
+        <div class="section" style="background: rgba(255, 250, 245, 0.6);">
+          <h3 class="section-title">
+            <i data-lucide="store"></i>
+            業者資訊 (乙方)
+          </h3>
+          <div style="font-size: 0.85rem; line-height: 1.8; color: var(--ink);">
+            <strong>店名：</strong>喵之谷<br>
+            <strong>特寵業許可證字號：</strong>S1140024<br>
+            <strong>負責人：</strong>吳秉綸<br>
+            <strong>聯絡電話：</strong>0919-263669<br>
+            <strong>營業時間：</strong>週一至週日 12:00-20:00 (採預約制)<br>
+            <strong>地址：</strong>台中市豐原區水源路7巷192號1、4樓
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">
+          確認送出 <i data-lucide="send"></i>
+        </button>
+      </form>
     </section>
 
-    <section id="view-mainecoon" class="hidden">
-      <h2>緬因貓詢問</h2>
-      <p>幼貓詢問 / 退役貓領養表單。</p>
+    <!-- ========== MAINE COON VIEW ========== -->
+    <section id="view-mainecoon" class="page hidden">
+      <div class="page-header">
+        <h2 class="page-title">緬因貓詢問</h2>
+        <p class="page-sub font-en">Maine Coon Inquiry</p>
+      </div>
+      
+      <div style="text-align: center; padding: 40px 20px;">
+        <i data-lucide="cat" size="64" style="color: var(--milk); margin-bottom: 20px;"></i>
+        <h3 style="color: var(--ink); font-size: 1.2rem;">請選擇詢問類型</h3>
+        <div style="display: grid; gap: 16px; max-width: 300px; margin: 30px auto;">
+          <button class="pill-btn" style="padding: 16px; font-size: 1rem;" onclick="alert('跳轉至幼貓詢問表單 (功能開發中)')">
+            幼貓詢問
+          </button>
+          <button class="pill-btn" style="padding: 16px; font-size: 1rem;" onclick="alert('跳轉至退役貓領養表單 (功能開發中)')">
+            退役貓領養
+          </button>
+        </div>
+      </div>
     </section>
   </main>
 
   <script>
     lucide.createIcons();
+
+    // === 核心路由邏輯 ===
     function router(view) {
+      // 如果沒有指定視圖，默認為 home
+      if (!view) view = 'home';
+      
+      // 1. 更新瀏覽器 URL 的 Hash (不會刷新頁面)
+      // 使用 replaceState 可以避免在點擊導航時產生多餘的歷史記錄
+      // 但為了讓手機返回鍵生效，我們這裡使用 pushState 或直接修改 hash
+      if (window.location.hash !== '#' + view) {
+        window.location.hash = view;
+      }
+
+      // 2. 切換視圖顯示
       const views = ["home", "grooming", "boarding", "mainecoon"];
-      views.forEach(v => document.getElementById("view-" + v).classList.add("hidden"));
-      document.getElementById("view-" + view).classList.remove("hidden");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      views.forEach(v => {
+        const el = document.getElementById("view-" + v);
+        if (el) {
+          if (v === view) {
+            el.classList.remove("hidden");
+            // 頁面切換時滾動到頂部
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          } else {
+            el.classList.add("hidden");
+          }
+        }
+      });
     }
+
+    // === 監聽 Hash 變化 (處理手機返回鍵、直接連結) ===
+    window.addEventListener('hashchange', () => {
+      // 獲取當前 URL 中 # 後面的內容，如果沒有則默認為 home
+      const hash = window.location.hash.slice(1) || 'home';
+      router(hash);
+    });
+
+    // === 初始化 ===
+    // 頁面加載時，檢查 URL 是否有 hash，如果有則跳轉到該頁面，否則顯示首頁
+    document.addEventListener('DOMContentLoaded', () => {
+      const initialHash = window.location.hash.slice(1) || 'home';
+      router(initialHash);
+    });
+
+    // === 表單交互邏輯 (保持原有的 Pill 按鈕等邏輯) ===
+    // Pill Button Logic (Radio)
+    document.querySelectorAll('.pill-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const name = this.getAttribute('data-name');
+        const value = this.getAttribute('data-value');
+        
+        const siblings = document.querySelectorAll(`.pill-btn[data-name="${name}"]`);
+        siblings.forEach(sib => sib.classList.remove('active'));
+        
+        this.classList.add('active');
+        
+        const hiddenInput = document.querySelector(`input[name="${name}"]`);
+        if (hiddenInput) {
+          hiddenInput.value = value;
+          hiddenInput.dispatchEvent(new Event('change')); 
+        }
+
+        if (name === 'can_food') {
+          document.getElementById('can_food_detail').style.display = (value === '有') ? 'grid' : 'none';
+        }
+        if (name === 'treats') {
+          document.getElementById('treats_detail').style.display = (value === '有') ? 'flex' : 'none';
+        }
+        if (name === 'supplements') {
+          document.getElementById('supplements_detail').style.display = (value === '有') ? 'grid' : 'none';
+        }
+        if (name === 'visit_freq') {
+          updateVisitTimeInputs(value);
+        }
+      });
+    });
+
+    // Visit Frequency Time Inputs Logic
+    function updateVisitTimeInputs(freq) {
+      const container = document.getElementById('visit_time_inputs');
+      container.innerHTML = ''; 
+      let count = 0;
+      if (freq === '一天一次') count = 1;
+      else if (freq === '兩天一次') count = 1;
+      else if (freq === '一天三次') count = 3;
+
+      for (let i = 0; i < count; i++) {
+        const div = document.createElement('div');
+        div.className = 'field';
+        div.innerHTML = `
+          <label>第 ${i + 1} 次時間</label>
+          <input type="time" name="visit_time_${i + 1}" required>
+        `;
+        container.appendChild(div);
+      }
+    }
+
+    // File Upload Preview Logic
+    document.querySelectorAll('.upload-zone').forEach(zone => {
+      zone.addEventListener('click', () => zone.querySelector('input[type="file"]').click());
+      const input = zone.querySelector('input[type="file"]');
+      const filenameDisplay = zone.querySelector('.upload-filename');
+      input.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          zone.classList.add('has-file');
+          filenameDisplay.textContent = e.target.files[0].name;
+        } else {
+          zone.classList.remove('has-file');
+          filenameDisplay.textContent = '';
+        }
+      });
+    });
+
+    document.querySelectorAll('form').forEach(form => {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        alert('表單已送出！(這是演示，尚未連接後端)');
+      });
+    });
   </script>
 </body>
 </html>
-
-
