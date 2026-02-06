@@ -1,0 +1,21 @@
+{
+  "name": "喵之谷 Meow Valley",
+  "short_name": "喵之谷",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f6efe7",
+  "theme_color": "#b78963",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "150x150",
+      "type": "image/png"
+    },
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
