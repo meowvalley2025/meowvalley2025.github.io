@@ -1,1 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>喵之谷 Meow Valley</title>
+  <link rel="icon" href="logo.png" type="image/png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ichitenfont/I.MingWebfont/index.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    @font-face {
+      font-family: "JasonHandwriting";
+      src: url("JasonHandwriting1.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    :root {
+      --bg: #f6efe7;
+      --bg-2: #f3e6dc;
+      --milk: #d7b899;
+      --milk-deep: #b78963;
+      --milk-soft: #ead6c3;
+      --ink: #4a3f36;
+      --sub: #8a7f74;
+      --glass: rgba(255, 255, 255, 0.78);
+      --stroke: rgba(255, 255, 255, 0.65);
+    }
+
+    * { box-sizing: border-box; }
+    .hidden { display: none !important; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "JasonHandwriting", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 18%, rgba(215, 184, 153, 0.14) 0%, transparent 40%),
+        radial-gradient(circle at 88% 82%, rgba(183, 137, 99, 0.12) 0%, transparent 42%),
+        linear-gradient(180deg, #f9f3ee 0%, var(--bg) 58%, var(--bg-2) 100%);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px);
+      background-size: 18px 18px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+    }
+
+    .nav-inner {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-family: "JasonHandwriting", sans-serif;
+      font-weight: 400;
+      letter-spacing: 0.25em;
+      color: var(--ink);
+    }
+
+    .brand img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+
+    .home-btn {
+      border: none;
+      background: transparent;
+      font-size: 0.72rem;
+      letter-spacing: 0.35em;
+      color: var(--sub);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .wrap {
+      max-width: 620px;
+      margin: 0 auto;
+      padding: 28px 22px 70px;
+    }
+
+    .glass-panel {
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      border-radius: 32px;
+      padding: 32px 22px;
+      box-shadow: 0 18px 40px rgba(73, 58, 47, 0.12);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .glass-panel::before,
+    .glass-panel::after {
+      content: "";
+      position: absolute;
+      width: 240px;
+      height: 240px;
+      border-radius: 999px;
+      filter: blur(40px);
+      opacity: 0.35;
+    }
+
+    .glass-panel::before {
+      top: -120px;
+      right: -120px;
+      background: rgba(215, 184, 153, 0.45);
+    }
+
+    .glass-panel::after {
+      bottom: -120px;
+      left: -120px;
+      background: rgba(183, 137, 99, 0.38);
+    }
+
+    .hero {
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .logo-wrap {
+      width: 150px;
+      height: 150px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+
+    .logo-wrap img {
+      width: 150px;
+      height: 150px;
+      object-fit: contain;
+    }
+
+    .title {
+      font-family: "JasonHandwriting", sans-serif;
+      font-weight: 400;
+      font-size: 2.2rem;
+      letter-spacing: 0.28em;
+      margin: 0 0 8px;
+      color: var(--ink);
+    }
+
+    .handwrite {
+      font-family: "JasonHandwriting", sans-serif;
+      color: var(--milk-deep);
+      font-size: 1.1rem;
+      letter-spacing: 0.18em;
+      margin: 0;
+    }
+
+    .font-en {
+      font-family: "JasonHandwriting", sans-serif;
+      letter-spacing: 0.18em;
+    }
+
+    .tagline {
+      margin: 10px 0 0;
+      color: var(--sub);
+      font-size: 0.75rem;
+      letter-spacing: 0.3em;
+    }
+
+    .license-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      margin-top: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(183, 137, 99, 0.35);
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--milk-deep);
+      font-size: 0.78rem;
+      letter-spacing: 0.16em;
+      box-shadow: 0 10px 22px rgba(73, 58, 47, 0.1);
+    }
+
+    .cards {
+      margin-top: 26px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(198, 160, 107, 0.28);
+      border-radius: 22px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 12px 28px rgba(73, 58, 47, 0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 36px rgba(73, 58, 47, 0.14);
+    }
+
+    .card.grooming { border-left: 6px solid var(--milk); }
+    .card.boarding { border-left: 6px solid var(--milk-deep); }
+    .card.maine { border-left: 6px solid var(--milk-soft); }
+
+    .icon-pill {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: #fff9f3;
+      border: 1px solid rgba(234, 216, 200, 0.8);
+      color: var(--ink);
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-family: "JasonHandwriting", sans-serif;
+      letter-spacing: 0.08em;
+    }
+
+    .card-sub {
+      margin: 4px 0 0;
+      font-size: 0.75rem;
+      color: var(--sub);
+      letter-spacing: 0.1em;
+    }
+
+    .arrow {
+      margin-left: auto;
+      color: var(--milk-deep);
+    }
+
+    /* Style Variant A: Cute Sweet (default) */
+    body.style-sweet .card {
+      border-radius: 28px;
+      background: #fffdfb;
+      border: 1px solid rgba(215, 184, 153, 0.35);
+      box-shadow: 0 14px 30px rgba(73, 58, 47, 0.12);
+    }
+
+    body.style-sweet .icon-pill {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      background: #fff5ee;
+      border: 1px solid rgba(215, 184, 153, 0.45);
+      color: var(--milk-deep);
+    }
+
+    body.style-sweet .card-title {
+      font-size: 1.1rem;
+    }
+
+    body.style-sweet .card-sub {
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+    }
+
+    /* Style Variant B: Japanese Handmade */
+    body.style-handmade .card {
+      border-radius: 22px;
+      background: linear-gradient(180deg, #fffaf5 0%, #fff6ee 100%);
+      border: 1px solid rgba(215, 184, 153, 0.3);
+      box-shadow: 0 10px 24px rgba(73, 58, 47, 0.09);
+      position: relative;
+      overflow: hidden;
+    }
+
+    body.style-handmade .card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.9) 1px, transparent 1px);
+      background-size: 12px 12px;
+      opacity: 0.25;
+      pointer-events: none;
+    }
+
+    body.style-handmade .icon-pill {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: #fffaf4;
+      border: 1px dashed rgba(200, 165, 130, 0.6);
+      color: var(--milk-deep);
+    }
+
+    body.style-handmade .card-title {
+      font-family: "JasonHandwriting", sans-serif;
+      font-size: 1.08rem;
+      letter-spacing: 0.16em;
+    }
+
+    body.style-handmade .card-sub {
+      font-size: 0.7rem;
+      letter-spacing: 0.14em;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 22px;
+    }
+
+    .socials {
+      display: flex;
+      justify-content: center;
+      gap: 22px;
+      color: rgba(183, 137, 99, 0.75);
+      margin-bottom: 14px;
+      font-size: 0.7rem;
+    }
+
+    .socials a {
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .socials a:hover {
+      color: var(--milk-deep);
+      transform: translateY(-2px);
+    }
+
+    .line-img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      display: block;
+      filter: grayscale(1);
+      opacity: 0.7;
+      transition: all 0.2s ease;
+    }
+
+    .socials a:hover .line-img {
+      filter: grayscale(0);
+      opacity: 1;
+    }
+
+    .addr {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(234, 216, 200, 0.7);
+      background: rgba(255, 255, 255, 0.65);
+      color: var(--sub);
+      font-size: 0.75rem;
+      text-decoration: none;
+    }
+
+    .page {
+      background: var(--glass);
+      border: 1px solid var(--stroke);
+      border-radius: 28px;
+      padding: 28px 22px 30px;
+      box-shadow: 0 16px 34px rgba(73, 58, 47, 0.12);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page::before,
+    .page::after {
+      content: "";
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      border-radius: 999px;
+      filter: blur(40px);
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .page::before {
+      top: -110px;
+      right: -110px;
+      background: rgba(215, 184, 153, 0.45);
+    }
+
+    .page::after {
+      bottom: -110px;
+      left: -110px;
+      background: rgba(183, 137, 99, 0.4);
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-title {
+      margin: 0 0 6px;
+      font-size: 1.6rem;
+      letter-spacing: 0.2em;
+    }
+
+    .page-sub {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--sub);
+      letter-spacing: 0.16em;
+    }
+
+    .section {
+      margin-top: 18px;
+      padding: 16px 16px 18px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(215, 184, 153, 0.28);
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      letter-spacing: 0.16em;
+      color: var(--milk-deep);
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 10px 12px;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--ink);
+    }
+
+    .field label {
+      color: var(--sub);
+      letter-spacing: 0.12em;
+      font-size: 0.7rem;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      border-radius: 12px;
+      border: 1px solid rgba(183, 137, 99, 0.35);
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.9);
+      font-family: "JasonHandwriting", sans-serif;
+      color: var(--ink);
+      font-size: 0.85rem;
+    }
+
+    .field textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .checklist {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--sub);
+    }
+
+    .checklist span {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px dashed rgba(183, 137, 99, 0.45);
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    .price-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      color: var(--ink);
+    }
+
+    .price-table th,
+    .price-table td {
+      padding: 8px 6px;
+      text-align: left;
+      border-bottom: 1px dashed rgba(183, 137, 99, 0.25);
+    }
+
+    .price-table th {
+      color: var(--milk-deep);
+      letter-spacing: 0.12em;
+      font-size: 0.75rem;
+    }
+
+    .note {
+      font-size: 0.75rem;
+      color: var(--sub);
+      line-height: 1.6;
+    }
+
+    .agreement {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255, 245, 236, 0.7);
+      border: 1px solid rgba(215, 184, 153, 0.35);
+      font-size: 0.78rem;
+      color: var(--ink);
+    }
+
+    .agreement input {
+      margin-top: 3px;
+    }
+
+    .signature {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(215, 184, 153, 0.2);
+      border: 1px solid rgba(183, 137, 99, 0.3);
+      font-size: 0.72rem;
+      color: var(--milk-deep);
+      letter-spacing: 0.12em;
+    }
+
+    @media (max-width: 520px) {
+      .title { font-size: 2rem; letter-spacing: 0.22em; }
+      .logo-wrap { width: 130px; height: 130px; }
+      .logo-wrap img { width: 130px; height: 130px; }
+      .page-title { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body class="style-sweet">
+  <nav>
+    <div class="nav-inner">
+      <div class="brand" onclick="router('home')">
+        <img src="logo.png" alt="喵之谷 Logo">
+        <span>喵之谷</span>
+      </div>
+      <button class="home-btn" onclick="router('home')">HOME</button>
+    </div>
+  </nav>
+
+  <main class="wrap">
+    <section id="view-home" class="glass-panel">
+      <div class="hero">
+        <div class="logo-wrap">
+          <img src="logo.png" alt="喵之谷 Logo">
+        </div>
+        <h1 class="title">喵之谷</h1>
+        <p class="handwrite font-en">Meow Valley</p>
+        <div class="license-tag">特寵業許可證字號：S1140024</div>
+      </div>
+
+      <div class="cards">
+        <button class="card grooming" onclick="router('grooming')">
+          <div class="icon-pill"><i data-lucide="scissors"></i></div>
+          <div>
+            <h3 class="card-title">純貓美容</h3>
+            <p class="card-sub font-en">Cat Grooming</p>
+          </div>
+          <i class="arrow" data-lucide="arrow-right"></i>
+        </button>
+
+        <button class="card boarding" onclick="router('boarding')">
+          <div class="icon-pill"><i data-lucide="home"></i></div>
+          <div>
+            <h3 class="card-title">純貓住宿</h3>
+            <p class="card-sub font-en">Cat Hotel</p>
+          </div>
+          <i class="arrow" data-lucide="arrow-right"></i>
+        </button>
+
+        <button class="card maine" onclick="router('mainecoon')">
+          <div class="icon-pill"><i data-lucide="cat"></i></div>
+          <div>
+            <h3 class="card-title">緬因貓詢問</h3>
+            <p class="card-sub font-en">Maine Coon Inquiry</p>
+          </div>
+          <i class="arrow" data-lucide="arrow-right"></i>
+        </button>
+      </div>
+
+      <div class="footer">
+        <div class="socials">
+          <a href="https://www.instagram.com/meow_valley2025?igsh=MWNyaWhxZjQ2OGRhdg%3D%3D&utm_source=qr" target="_blank">
+            <i data-lucide="instagram"></i>
+            <span>Instagram</span>
+          </a>
+          <a href="https://www.facebook.com/profile.php?id=61577336540564&mibextid=wwXIfr&rdid=f3BtSChGscS4Yd5O&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F17Va8DnL8A%2F%3Fmibextid%3DwwXIfr#" target="_blank">
+            <i data-lucide="facebook"></i>
+            <span>Facebook</span>
+          </a>
+          <a href="https://line.me/R/ti/p/@463mpova?oat_content=url&ts=02031808" target="_blank">
+            <img src="line.png" alt="LINE" class="line-img">
+            <span>LINE</span>
+          </a>
+        </div>
+        <a class="addr" href="https://maps.app.goo.gl/m7wQdKVCuVQXgKgL6" target="_blank">
+          <i data-lucide="map-pin"></i>
+          臺中市豐原區水源路7巷192號
+        </a>
+      </div>
+    </section>
+
+    <section id="view-grooming" class="hidden">
+      <h2>純貓美容服務</h2>
+      <p>之後放美容服務與價目內容。</p>
+    </section>
+
+    <section id="view-boarding" class="hidden">
+      <h2>純貓住宿服務</h2>
+      <p>之後放住宿規則與價目內容。</p>
+    </section>
+
+    <section id="view-mainecoon" class="hidden">
+      <h2>緬因貓詢問</h2>
+      <p>幼貓詢問 / 退役貓領養表單。</p>
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+    function router(view) {
+      const views = ["home", "grooming", "boarding", "mainecoon"];
+      views.forEach(v => document.getElementById("view-" + v).classList.add("hidden"));
+      document.getElementById("view-" + view).classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  </script>
+</body>
+</html>
 
