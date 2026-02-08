@@ -1391,12 +1391,18 @@ const [retired, setRetired] = useState({
 </div>
 
               <div className="qn-card">
-                <div className="qn-title"><span className="qn-num">12</span>(可不勾) 半價讓渡意願</div>
+<div className="qn-title">
+  <span className="qn-num">12</span>(可不勾) 半價讓渡貓咪意願（非退役貓）
+</div>
+<div className="qn-desc small-text">
+    ※ 除了退役貓咪外，我們也會不定期釋出少量「原讓渡價半價」的貓咪，如有興趣可勾選。
+
+</div>
 <div className="qn-options one-col">
                   {[
-                    '未生育過，繁殖計畫改變',
-                    '未生育過，體型較小有生產風險母貓',
-                    '未生育過，小時候生病錯過找家長時期'
+                    '未生育過，因繁殖計畫改變而釋出',
+                    '未生育過，因體型較小有生產風險母貓',
+                    '未生育過，因小時候生病錯過找家長時期（已痊癒）'
                   ].map(v=>(
                     <label key={v}>
                       <input type="checkbox" checked={retired.halfPriceOptions.includes(v)}
@@ -2643,6 +2649,10 @@ const [retired, setRetired] = useState({
   background:#fff;
   color:var(--sub);
   box-shadow:0 8px 16px rgba(0,0,0,.05);
+}
+.small-text {
+  font-size: 0.85rem; /* 或 12px */
+  color: #666;        /* 也可以淡一點 */
 }
   </style>
 </head>
