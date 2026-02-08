@@ -20,7 +20,10 @@
 
 <script type="text/babel">
   const { useState, useEffect, useRef } = React;
-
+// ✅ Supabase 初始化
+const supabaseUrl = "https://iqhalbrbivruokxxgycw.supabase.co";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxaGFsYnJiaXZydW9reHhneWN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NjI3NTcsImV4cCI6MjA4NjEzODc1N30.bbam-b8GABkUqHbvic3JEXjySLQzvYynD3aG-MnfYow";
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
   // --- 子元件 1：首頁畫面 ---
   const HomeView = ({ onNavigate }) => (
     <section className="glass-panel animate-in fade-in duration-500">
@@ -37,7 +40,7 @@
           <div className="icon-pill"><i data-lucide="scissors"></i></div>
           <div>
             <h3 className="card-title">純貓美容</h3>
-            <p className="card-sub font-en text-[10px]">Cat Grooming</p>
+            <p className="card-sub font-en text-[12px]">Cat Grooming</p>
           </div>
           <i className="arrow" data-lucide="arrow-right"></i>
         </button>
@@ -46,7 +49,7 @@
           <div className="icon-pill"><i data-lucide="home"></i></div>
           <div>
             <h3 className="card-title">純貓住宿</h3>
-            <p className="card-sub font-en text-[10px]">Cat Hotel</p>
+            <p className="card-sub font-en text-[12px]">Cat Hotel</p>
           </div>
           <i className="arrow" data-lucide="arrow-right"></i>
         </button>
@@ -55,7 +58,7 @@
           <div className="icon-pill"><i data-lucide="cat"></i></div>
           <div>
             <h3 className="card-title">緬因貓詢問</h3>
-            <p className="card-sub font-en text-[10px]">Maine Coon Inquiry</p>
+            <p className="card-sub font-en text-[12px]">Maine Coon Inquiry</p>
           </div>
           <i className="arrow" data-lucide="arrow-right"></i>
         </button>
@@ -67,84 +70,206 @@
           <a href="https://www.facebook.com/profile.php?id=61577336540564" target="_blank"><i data-lucide="facebook"></i></a>
           <a href="https://line.me/R/ti/p/@463mpova?oat_content=url&ts=02031808" target="_blank"><img src="line.png" className="line-img" /></a>
         </div>
-        <p className="text-[10px] mt-4 opacity-50 tracking-widest">特寵業繁字第 S1140024 號</p>
+        <p className="text-[12px] mt-4 opacity-50 tracking-widest">特寵業繁字第 S1140024 號</p>
       </div>
     </section>
   );
 
-  // --- 子元件 2：通用條款彈窗 ---
-  const TermsModal = ({ title, children, onClose }) => (
-    <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-[#fcfaf8] rounded-[32px] w-full max-w-lg max-h-[80vh] flex flex-col border-2 border-white shadow-2xl">
-        <div className="p-6 border-b border-milk-soft flex justify-between items-center">
-          <h3 className="font-black text-ink">{title}</h3>
-          <button onClick={onClose} className="p-2 bg-milk-soft/20 rounded-full"><i data-lucide="x"></i></button>
-        </div>
-        <div className="p-8 overflow-y-auto text-sm leading-relaxed text-gray-700 font-sans">
-          {children}
-        </div>
-        <div className="p-6 border-t border-milk-soft">
-          <button onClick={onClose} className="w-full py-4 bg-milk-deep text-white rounded-2xl font-bold shadow-lg">確認並關閉</button>
-        </div>
-      </div>
-    </div>
-  );
+  // --- 子元件 2：通用條款彈窗 (需滑到底才能同意) ---
+  const TermsModal = ({ title, children, onClose, onAgree }) => {
+    const contentRef = useRef(null);
+    const [canAgree, setCanAgree] = useState(false);
 
-  // --- 子元件 3：全螢幕簽名板 ---
-  const SignatureModal = ({ onSave, onClose }) => {
-    const canvasRef = useRef(null);
-    let drawing = false;
+useEffect(() => {
+  setCanAgree(false);
+  setTimeout(() => {
+    const el = contentRef.current;
+    if (el && el.scrollHeight <= el.clientHeight + 10) {
+      setCanAgree(true);
+    }
+  }, 0);
+}, [title]);
 
-    useEffect(() => {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const ratio = window.devicePixelRatio || 1;
-      canvas.width = canvas.offsetWidth * ratio;
-      canvas.height = canvas.offsetHeight * ratio;
-      ctx.scale(ratio, ratio);
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = '#4a3f36';
-
-      const getPos = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        return { x: clientX - rect.left, y: clientY - rect.top };
-      };
-      const start = (e) => { drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); };
-      const move = (e) => { if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); };
-      const stop = () => { drawing = false; };
-
-      canvas.addEventListener('mousedown', start);
-      canvas.addEventListener('mousemove', move);
-      window.addEventListener('mouseup', stop);
-      canvas.addEventListener('touchstart', start, {passive:false});
-      canvas.addEventListener('touchmove', move, {passive:false});
-      canvas.addEventListener('touchend', stop);
-      return () => window.removeEventListener('mouseup', stop);
-    }, []);
+    const handleScroll = (e) => {
+      const { scrollTop, scrollHeight, clientHeight } = e.target;
+      if (scrollHeight - scrollTop - clientHeight < 30) {
+        setCanAgree(true);
+      }
+    };
 
     return (
-      <div className="fixed inset-0 bg-ink/90 z-[120] flex flex-col items-center justify-center p-4 backdrop-blur-md">
-        <div className="bg-white rounded-[40px] p-6 w-full max-w-xl shadow-2xl">
-          <h3 className="text-center mb-6 font-black text-ink tracking-widest">甲方 (飼主) 簽署區</h3>
-          <canvas ref={canvasRef} className="bg-gray-50 border-2 border-dashed border-milk-soft rounded-[30px] touch-none w-full h-64 shadow-inner" />
-          <div className="grid grid-cols-3 gap-3 mt-6">
-            <button className="py-4 bg-gray-100 rounded-2xl font-bold" onClick={onClose}>取消</button>
-            <button className="py-4 bg-gray-100 rounded-2xl font-bold text-red-500" onClick={() => {
-              const ctx = canvasRef.current.getContext('2d');
-              ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-            }}>重簽</button>
-            <button className="py-4 bg-milk-deep text-white rounded-2xl font-bold" onClick={() => onSave(canvasRef.current.toDataURL())}>完成簽名</button>
+      <div className="fixed inset-0 bg-black/60 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="bg-[#fcfaf8] rounded-[32px] w-full max-w-lg max-h-[80vh] flex flex-col border-2 border-white shadow-2xl">
+          <div className="p-6 border-b border-milk-soft flex justify-between items-center">
+            <h3 className="font-black text-ink">{title}</h3>
+            <button onClick={onClose} className="p-2 bg-milk-soft/20 rounded-full"><i data-lucide="x"></i></button>
+          </div>
+
+          <div
+            ref={contentRef}
+            onScroll={handleScroll}
+className="p-8 overflow-y-auto text-sm leading-relaxed font-hand"
+style={{ color: 'var(--ink)' }}
+          >
+            {children}
+            <div className="h-8"></div>
+          </div>
+
+          <div className="p-6 border-t border-milk-soft">
+            {!canAgree && (
+              <p className="text-xs text-center text-red-400 font-bold mb-3 animate-pulse">
+                👇 請滑動至最底部以啟用同意按鈕
+              </p>
+            )}
+            <button
+              disabled={!canAgree}
+              onClick={() => {
+                if (canAgree) {
+                  onAgree && onAgree();
+                  onClose();
+                }
+              }}
+              className="w-full py-4 rounded-2xl font-bold shadow-lg transition-all border-2"
+              style={{
+                backgroundColor: canAgree ? 'var(--milk-deep)' : '#f2f2f2',
+                color: canAgree ? '#ffffff' : 'var(--ink)',
+                borderColor: canAgree ? 'var(--milk-deep)' : '#e5e5e5',
+                opacity: 1
+              }}
+            >
+              {canAgree ? '我已詳閱並同意' : '請閱讀完畢'}
+            </button>
           </div>
         </div>
       </div>
     );
   };
 
+  // --- 子元件 3：全螢幕簽名板 ---
+const SignatureModal = ({ onSave, onClose }) => {
+  const canvasRef = useRef(null);
+  const drawingRef = useRef(false);
+  const hasDrawnRef = useRef(false);
+
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+
+    const resizeCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+
+      canvas.width = rect.width * ratio;
+      canvas.height = rect.height * ratio;
+
+      // ✅ 這行最重要：每次 resize 必須 reset
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(ratio, ratio);
+
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#4a3f36';
+    };
+
+    // ✅ 等渲染完成再 resize
+    requestAnimationFrame(resizeCanvas);
+    window.addEventListener('resize', resizeCanvas);
+
+    const getPos = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    };
+
+    const start = (e) => {
+      drawingRef.current = true;
+      const p = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    };
+
+    const move = (e) => {
+      if (!drawingRef.current) return;
+      const p = getPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      hasDrawnRef.current = true;
+      e.preventDefault();
+    };
+
+    const stop = () => {
+      drawingRef.current = false;
+    };
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', stop);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', stop);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener('mouseup', stop);
+      canvas.removeEventListener('mousedown', start);
+      canvas.removeEventListener('mousemove', move);
+      canvas.removeEventListener('touchstart', start);
+      canvas.removeEventListener('touchmove', move);
+      canvas.removeEventListener('touchend', stop);
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[120] bg-[#f6efe7] flex flex-col">
+      <div className="bg-milk-deep text-white px-5 py-4 flex justify-between items-center shadow-md">
+        <div className="font-black text-sm tracking-widest">請簽名</div>
+        <button onClick={onClose} className="p-2 rounded-full bg-white/20">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div className="flex-1 bg-[#fcfaf8] relative touch-none">
+        <canvas ref={canvasRef} className="w-full h-full block"></canvas>
+      </div>
+
+      <div className="p-4 bg-white border-t flex gap-3">
+        <button
+          onClick={() => {
+            const ctx = canvasRef.current.getContext('2d');
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            hasDrawnRef.current = false;
+          }}
+          className="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-sub"
+        >
+          重寫
+        </button>
+        <button
+          onClick={() => {
+            if (!hasDrawnRef.current) {
+              alert('請先簽名');
+              return;
+            }
+            onSave(canvasRef.current.toDataURL());
+          }}
+          className="flex-[2] py-3 bg-milk-deep text-white rounded-xl font-bold shadow-lg"
+        >
+          確認簽名
+        </button>
+      </div>
+    </div>
+  );
+};
+
   // --- 子元件 4：專業版契約表單 ---
   const ContractForm = ({ title, type, onBack }) => {
+        useEffect(() => {
+      lucide.createIcons();
+    });
 const [formData, setFormData] = useState({
       ownerName: '', phone: '', idNumber: '', email: '', address: '',
       emerName: '', emerRel: '', emerPhone: '',
@@ -154,7 +279,8 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
       lineConfirmed: false 
     });
     const [showSig, setShowSig] = useState(false);
-    const [sigImage, setSigImage] = useState(null);
+const [sigImage, setSigImage] = useState(null);
+const [sigTime, setSigTime] = useState(null);
     const [activeModal, setActiveModal] = useState(null);
 
     const handleChange = (e) => {
@@ -162,8 +288,19 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
       setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
 
+    // 高風險判斷
+const isHighRisk = (() => {
+  const ageNum = parseFloat(formData.age);
+  const ageRisk = !isNaN(ageNum) && (ageNum <= 1 || ageNum >= 8);
+  const healthRisk = formData.healthHistory === '有';
+  const behaviorRisk =
+    Array.isArray(formData.behavior) &&
+    (formData.behavior.includes('有攻擊性') || formData.behavior.includes('會咬人'));
+  return ageRisk || healthRisk || behaviorRisk;
+})();
+
     const handleFinalSubmit = () => {
-      if(!formData.agreeTerms || !formData.agreeHighRisk) return alert("請勾選同意相關條款");
+const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || !sigImage;
       if(!formData.ownerName || !sigImage) return alert("請填寫姓名並完成簽名");
       alert("✅ 契約準備就緒！");
     };
@@ -172,7 +309,7 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
 <div className="px-2 mb-6">
           <h2 className="text-2xl font-black text-ink tracking-tight">{title}</h2>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-sub font-bold opacity-60">Agreement Profile</p>
+          <p className="text-[12px] uppercase tracking-[0.2em] text-sub font-bold opacity-60">Agreement Profile</p>
         </div>
 
 {/* LINE 預約引導盒 (最終融合定案版 - 細節還原) */}
@@ -260,52 +397,52 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
             {/* 姓名與電話並排 */}
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group">
-                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">姓名 / Name</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">姓名 / Name</label>
                 <input type="text" name="ownerName" placeholder="填寫完整姓名" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電話 / Mobile</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電話 / Mobile</label>
                 <input type="tel" name="phone" placeholder="09xx-xxxxxx" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
               </div>
             </div>
 
             {/* 身分證字號 */}
             <div className="form-group">
-              <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">身分證字號 / ID Number</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">身分證字號 / ID Number</label>
               <input type="text" name="idNumber" placeholder="請填寫身分證字號" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
             </div>
 
             {/* 電子郵件 */}
             <div className="form-group">
-              <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電子郵件 / E-mail</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電子郵件 / E-mail</label>
               <input type="email" name="email" placeholder="寄送契約副本用" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
             </div>
 
             {/* 通訊地址 */}
             <div className="form-group">
-              <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">通訊地址 / Address</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">通訊地址 / Address</label>
               <input type="text" name="address" placeholder="請填寫完整地址" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
             </div>
 
             {/* 緊急聯絡人區塊 */}
             <div className="mt-8 pt-6 border-t border-milk-soft/50">
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-[10px] font-black text-milk-deep uppercase tracking-widest bg-milk-soft/20 px-2 py-0.5 rounded">緊急聯絡人</span>
-                <span className="text-[9px] text-sub opacity-70">(聯絡不到飼主時)</span>
+                <span className="text-[12px] font-black text-milk-deep uppercase tracking-widest bg-milk-soft/20 px-2 py-0.5 rounded">緊急聯絡人</span>
+                <span className="text-[12px] text-sub opacity-70">(聯絡不到飼主時)</span>
               </div>
               
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="form-group">
-                  <label className="text-[9px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人姓名</label>
+                  <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人姓名</label>
                   <input type="text" name="emerName" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
                 </div>
                 <div className="form-group">
-                  <label className="text-[9px] font-bold text-sub ml-1 mb-1 block uppercase">關係</label>
+                  <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">關係</label>
                   <input type="text" name="emerRel" placeholder="如: 配偶、家人" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
                 </div>
               </div>
               <div className="form-group">
-                <label className="text-[9px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人電話</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人電話</label>
                 <input type="tel" name="emerPhone" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
               </div>
             </div>
@@ -325,26 +462,26 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
             {/* 名字、品種、體重、年齡 */}
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group">
-                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">毛孩姓名 / Name</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">毛孩姓名 / Name</label>
                 <input type="text" name="petName"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">品種 / Breed</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">品種 / Breed</label>
                 <input type="text" name="breed"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">體重 / Weight (kg)</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">體重 / Weight (kg)</label>
                 <input type="number" name="weight"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">年齡 / Age</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">年齡 / Age</label>
                 <input type="text" name="age"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
               </div>
             </div>
 
 {/* 性別 (按鈕設計) */}
             <div className="form-group">
-              <label className="text-[10px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">性別 / Gender</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">性別 / Gender</label>
               <div className="grid grid-cols-2 gap-2">
                 {['公', '母'].map(val => (
                   <button key={val} type="button" onClick={() => setFormData({...formData, gender: val})} className={`btn-choice ${formData.gender === val ? 'active' : ''}`}>{val === '公' ? '♂ 公' : '♀ 母'}</button>
@@ -354,7 +491,7 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
 
 {/* 結紮 (按鈕設計) */}
             <div className="form-group">
-              <label className="text-[10px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">結紮 / Neutered</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">結紮 / Neutered</label>
               <div className="grid grid-cols-2 gap-2">
                 {['是', '否'].map(val => (
                   <button key={val} type="button" onClick={() => setFormData({...formData, neutered: val})} className={`btn-choice ${formData.neutered === val ? 'active' : ''}`}>{val}</button>
@@ -364,7 +501,7 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
 
 {/* 晶片資訊 (按鈕設計) */}
             <div className="form-group">
-              <label className="text-[10px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">晶片資訊 / Microchip</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">晶片資訊 / Microchip</label>
               <div className="grid grid-cols-3 gap-2 mb-2">
                 {[
                   {k:'有', l:'有晶片'}, 
@@ -381,7 +518,7 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
 
 {/* 性情與攻擊性評估 (按鈕設計) */}
             <div className="form-group">
-              <label className="text-[10px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">性情評估 / Behavior (可複選)</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">性情評估 / Behavior (可複選)</label>
               <div className="flex flex-wrap gap-2">
                 {['親近人', '容易緊張', '有攻擊性', '會咬人', '不會咬人', '其他'].map(val => (
                   <button key={val} type="button" onClick={() => {
@@ -398,7 +535,7 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
 
 {/* 過往病史 (按鈕設計) */}
             <div className="form-group">
-<label className="text-[10px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">過往病史 / Past Medical History <span className="text-orange-600 font-black ml-1">請務必如實告知!</span></label>
+<label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">過往病史 / Past Medical History <span className="text-orange-600 font-black ml-1">請務必如實告知!</span></label>
               <div className="grid grid-cols-2 gap-2 mb-3">
                 {['有', '無'].map(val => (
                   <button key={val} type="button" onClick={() => setFormData({...formData, healthHistory: val})} className={`btn-choice ${formData.healthHistory === val ? 'active' : ''}`}>{val}</button>
@@ -407,7 +544,7 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
               <textarea name="healthNote" rows="2" placeholder="食物/藥物過敏史、手術史或其他注意事項..." className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange}></textarea>
             </div>
 <div className="mb-1.5">
-<label className="text-[10px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">指定就醫診療機構 (若未填寫，則依店家特約醫院)</label>
+<label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">指定就醫診療機構 (若未填寫，則依店家特約醫院)</label>
               <input type="text" name="prefHospital" placeholder="若未填寫，則依店家特約醫院" className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm outline-none focus:border-milk-deep transition-all" onChange={handleChange} />
             </div>
             
@@ -416,7 +553,7 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
               <div className="absolute -right-2 -bottom-2 opacity-5 group-hover:scale-110 transition-transform"><i data-lucide="hospital" className="w-16 h-16 text-orange-900"></i></div>
               <div className="mt-1 bg-white p-2.5 rounded-xl shadow-sm"><i data-lucide="hospital" className="w-5 h-5 text-orange-400"></i></div>
               <div className="relative z-10">
-                <p className="text-[10px] font-black text-orange-800 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+                <p className="text-[12px] font-black text-orange-800 uppercase tracking-widest mb-1.5 flex items-center gap-2">
                   <span className="w-1 h-3 bg-orange-400 rounded-full"></span> 乙方特約醫院
                 </p>
                 <p className="font-bold text-sm text-orange-900 mb-0.5">新生動物醫院 (04-25257658)</p>
@@ -425,35 +562,366 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
             </div>
           </div>
         </div>
+
+        {/* ✅ 乙方（店家）資訊區塊 */}
+<div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm">
+  <div className="flex items-center gap-2 mb-4 text-milk-deep">
+    <div className="bg-milk-soft/30 p-1.5 rounded-lg">
+      <i data-lucide="store" className="w-4 h-4"></i>
+    </div>
+    <span className="text-xs font-black uppercase tracking-[0.2em]">乙方（店家）資訊</span>
+  </div>
+
+  <div className="space-y-2 text-[14px] text-ink">
+    <div><span className="font-bold">店名：</span>喵之谷</div>
+    <div><span className="font-bold">特寵業許可證字號：</span>S1140024</div>
+    <div><span className="font-bold">負責人：</span>吳秉綸</div>
+    <div><span className="font-bold">聯絡電話：</span>0919-263669</div>
+    <div><span className="font-bold">營業時間：</span>週一至週日 12:00-20:00 (採預約制)</div>
+    <div><span className="font-bold">地址：</span>台中市豐原區水源路7巷192號1、4樓</div>
+  </div>
+</div>
+
         <div className="bg-orange-50/40 border border-orange-100 rounded-[24px] p-5 mb-5">
-          <div className="space-y-3">
-            <label className="flex items-center gap-3 p-2 cursor-pointer"><input type="checkbox" name="agreeTerms" checked={formData.agreeTerms} onChange={handleChange} className="w-5 h-5 accent-milk-deep" /><span className="text-sm">同意 <button onClick={() => setActiveModal('terms')} className="text-milk-deep underline font-bold">服務契約</button></span></label>
-            <label className="flex items-center gap-3 p-2 cursor-pointer"><input type="checkbox" name="agreeHighRisk" checked={formData.agreeHighRisk} onChange={handleChange} className="w-5 h-5 accent-red-500" /><span className="text-sm">同意 <button onClick={() => setActiveModal('highrisk')} className="text-red-500 underline font-bold">高風險聲明</button></span></label>
+          <div className="space-y-4">
+            
+            {/* 美容服務條款按鈕 */}
+            <button
+              type="button"
+              onClick={() => setActiveModal('terms')}
+              className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                formData.agreeTerms ? 'bg-green-50 border-green-200' : 'bg-white border-milk-soft'
+              }`}
+            >
+              <div className="flex items-center gap-3 text-left">
+                <div className={`p-2 rounded-xl ${formData.agreeTerms ? 'bg-green-500 text-white' : 'bg-milk-soft text-milk-deep'}`}>
+                  <i data-lucide="scissors"></i>
+                </div>
+                <div>
+                  <p className="text-sm font-black text-ink">美容服務契約條款</p>
+                  <p className="text-[12px] text-sub">點擊閱讀</p>
+                </div>
+              </div>
+              <span className={`text-[12px] font-bold px-3 py-1 rounded-full ${
+                formData.agreeTerms ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'
+              }`}>
+                {formData.agreeTerms ? '已閱讀' : '待閱讀'}
+              </span>
+            </button>
+
+{isHighRisk && (
+  <div className={`flex items-center gap-3 p-4 rounded-2xl border-2 shadow-sm ${
+    formData.agreeHighRisk
+      ? 'bg-green-50 border-green-200'
+      : 'bg-red-50 border-red-200'
+  }`}>
+    
+    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+      formData.agreeHighRisk
+        ? 'bg-green-500 text-white'
+        : 'bg-red-100 text-red-500'
+    }`}>
+      <i data-lucide="alert-triangle"></i>
+    </div>
+
+    <div className="flex-1">
+      <p className={`font-bold text-sm ${
+        formData.agreeHighRisk ? 'text-green-600' : 'text-red-600'
+      }`}>
+        【高風險】美容服務風險告知
+      </p>
+      <p className="text-xs text-sub">
+        {formData.agreeHighRisk ? '已完成同意' : '檢測到毛孩符合高風險條件，請務必閱讀'}
+      </p>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => setActiveModal('highrisk')}
+      className={`px-4 py-2 rounded-full text-xs font-bold ${
+        formData.agreeHighRisk
+          ? 'bg-green-500 text-white'
+          : 'bg-red-500 text-white'
+      }`}
+    >
+      {formData.agreeHighRisk ? '已同意' : '務必詳閱'}
+    </button>
+  </div>
+)}
           </div>
         </div>
 
-        <div className="px-2 mb-8">
-          <p className="text-[10px] font-bold text-sub mb-2 uppercase tracking-widest text-center">甲方 (飼主) 數位簽署</p>
-          <div className="sig-preview-area bg-white/80 border-2 border-dashed border-milk rounded-3xl h-32 flex items-center justify-center overflow-hidden" onClick={() => setShowSig(true)}>
-            {sigImage ? <img src={sigImage} className="max-h-full" /> : <p className="text-[10px] text-sub">點擊簽名</p>}
-          </div>
-        </div>
+<div className="px-2 mb-8">
+  <p className="text-[12px] font-bold text-sub mb-2 uppercase tracking-widest text-center">
+    甲方 (飼主) 數位簽署
+  </p>
+
+  {/* 簽名框 */}
+  <div
+    className={`sig-preview-area bg-white/80 border-2 border-dashed border-milk rounded-3xl min-h-[140px] flex items-center justify-center ${
+      !formData.agreeTerms ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+    }`}
+    onClick={() => {
+      if (!formData.agreeTerms) {
+        alert('請先閱讀並同意美容條款');
+        return;
+      }
+      setShowSig(true);
+    }}
+  >
+    {sigImage ? (
+      <img
+        src={sigImage}
+        className="w-full h-20 object-contain"
+        style={{ maxWidth: '100%', maxHeight: '100%' }}
+      />
+    ) : (
+      <p className="text-[12px] text-sub">
+        {formData.agreeTerms ? '點擊簽名' : '請先閱讀條款'}
+      </p>
+    )}
+  </div>
+
+  {/* ✅ 簽名資訊顯示在外面 */}
+  {sigImage && (
+    <div className="mt-2 w-full flex items-center justify-between text-[12px] font-bold text-sub">
+      <span className="text-green-600 bg-green-50 px-3 py-1 rounded-full">
+        ✅ 已簽署
+      </span>
+      {sigTime && (
+        <span>
+          簽署時間：{sigTime.toLocaleString('zh-TW', { hour12: false })}
+        </span>
+      )}
+    </div>
+  )}
+</div>
 
         <div className="grid grid-cols-2 gap-4 px-2">
           <button className="py-4 bg-white/50 text-sub rounded-2xl font-bold shadow-sm" onClick={onBack}>返回</button>
-          <button className={`py-4 rounded-2xl font-bold shadow-lg ${(!formData.agreeTerms || !formData.agreeHighRisk || !sigImage) ? 'bg-gray-300 text-white' : 'bg-milk-deep text-white'}`} onClick={handleFinalSubmit}>確認送出</button>
+<button className={`py-4 rounded-2xl font-bold shadow-lg ${(!formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || !sigImage) ? 'bg-gray-300 text-white' : 'bg-milk-deep text-white'}`} onClick={handleFinalSubmit}>確認送出</button>
         </div>
 
-        {activeModal === 'highrisk' && (
-          <TermsModal title="高風險寵物美容聲明" onClose={() => setActiveModal(null)}>
-            <div className="space-y-4">
-              <p>1. 飼主確認已如實告知寵物病史（心臟病、癲癇、過敏等）。</p>
-              <p>2. 美容過程若因寵物自身健康誘發風險，由飼主自負責任。</p>
-              <p>3. 緊急狀況授權送往醫療機構，費用由飼主負擔。</p>
-            </div>
-          </TermsModal>
-        )}
-        {showSig && <SignatureModal onSave={(data) => { setSigImage(data); setShowSig(false); }} onClose={() => setShowSig(false)} />}
+{activeModal === 'terms' && (
+  <TermsModal
+    title={type === 'boarding' ? "貓寄養定型化契約" : "美容服務契約條款"}
+    onClose={() => setActiveModal(null)}
+    onAgree={() => setFormData(prev => ({ ...prev, agreeTerms: true }))}
+  >
+    {type === 'boarding' ? (
+      <div className="space-y-4 text-sm leading-relaxed font-hand" style={{ color: 'var(--ink)' }}>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">第一條（契約目的與範圍）</h5>
+          <p>本契約所稱貓寄養業者，指在特定期間內，以營業場所提供貓寄宿、飼養之業者。</p>
+          <p>乙方收取寄養費用，應開立收費憑證交付甲方。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">第二條（資訊揭露義務）</h5>
+          <p>本契約及特定寵物業寄養許可證正本公告於場所明顯處，簽署後此契約即生效。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">第三條（甲方誠實告知義務）</h5>
+          <p>乙方於簽約前向甲方詢問、確認貓是否合適接受寄養，甲方對於乙方之詢問應誠實告知，並主動告知乙方貓是否有疾病史、手術史等健康狀況或其他特殊須注意事項。</p>
+          <p>寄養之貓因甲方隱瞞病況發生意外或死亡，且乙方無疏失，則乙方無須負損害賠償責任且乙方得解除契約，甲方應於雙方約定時間內將寄養之貓領回，如逾時未領回或無法提前接回，則飼主須自行承擔貓之健康風險，且仍需支付寄養或逾時費用。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">第四條（寄養期間之異常狀況處理）</h5>
+          <p>於寄養期間，乙方發現貓有緊急就醫必要時，需立即通知甲方或其指定之緊急聯絡人，乙方應優先將貓送往甲方指定獸醫院，如甲方指定獸醫院及乙方配合獸醫院皆為營業時間外，則就近至設有24小時急診之獸醫院（夏洛克動物醫院），甲方同意外出就醫需額外支付300元/小時，並由甲方承擔所有診療費用。如突發狀況無法及時聯絡甲方，甲方同意授權乙方緊急送醫處置，費用由甲方負擔。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">第五條（貓寄養契約之解除及終止契約之退費規定）</h5>
+          <p>甲乙雙方確認訂房後，需預付總房價的50%為定金，乙方即予保留房位及時段，尾款於入住時收取，提前退宿恕不予退款。</p>
+          <p>本館退費規定：</p>
+          <p>• 若於入住15天(含)前取消訂房，定金可全數退回。</p>
+          <p>• 若於入住8～14天前取消訂房，定金可退回50%。</p>
+          <p>• 若於入住前未達7天(含)取消訂房，恕不退還定金，定金可保留一年。</p>
+          <p>連續假期與農曆春節將另行公告，不適用以上收費及退款規定，將另行公告。</p>
+          <p>遇颱風、地震等不可抗力，以台中市政府公告為主，定金可保留乙次（有效期一年）。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">第六條（甲方逾時接回貓之處理方式）</h5>
+          <p>甲方應於約定之寄養期間屆滿時，準時接回寄養之貓，除經乙方同意延長留置外，不得逾期滯留。</p>
+          <p>甲方同意接回貓之時間已逾約定時間者，乙方將收取逾時費，每小時新臺幣200元。逾時未滿三十分鐘不收取逾時費，逾時三十分鐘起開始計算逾時費，其超過部分，未滿三十分鐘者，以半小時計算，收取100元；超過三十分鐘以上未滿一小時者，以一小時計算，收取200元。</p>
+          <p>如超過當日營業時間未接回貓者，則需隔日接回並支付寄養費用。</p>
+          <p>甲方逾三日未接回貓，且未為正當說明，經通知仍未處理者，乙方得依動物保護法相關規定辦理，甲方不得異議，並應負擔相關衍生費用。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">第七條（個人資料保護）</h5>
+          <p>甲方同意個資用於服務聯繫，乙方予保密，非經甲方同意，乙方不得對外揭露（除政府單位要求）。甲方同意無償授權貓影像用於官方宣傳，若不同意請提前告知。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">第八條（申訴處理及管轄法院）</h5>
+          <p>甲方對乙方提供之服務有不滿意時，乙方將有專人接受申訴、協商。因本契約涉訟者，甲乙雙方同意以台中地方法院為第一審管轄法院。</p>
+        </div>
+
+        <div className="pb-2">
+          <h5 className="font-black text-milk-deep mb-1">第九條（其他約定事項）</h5>
+          <p>乙方因安全考量，未接待：未完成三劑疫苗之幼貓、接種疫苗一周內、有傳染風險（如打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血…等狀況）及心臟病、癲癇、腎臟泌尿系統疾病、嚴重呼吸道疾病之貓咪，有傳染風險需額外收取清潔費用3000元，如經店家判斷太嚴重須由飼主馬上接回並終止合約（也需付清潔費用，費用由店家規定不得異議！）</p>
+        </div>
+
+      </div>
+    ) : (
+      <div className="space-y-4 text-sm leading-relaxed font-hand" style={{ color: 'var(--ink)' }}>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">一、契約目的與服務範圍</h5>
+          <p>犬、貓美容服務係指清洗、清潔、吹乾梳毛、毛髮修剪及造型設計等行為，<span className="term-warn">不涉及任何動物醫療行為</span>。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">二、資訊揭露與契約效力</h5>
+          <p>本契約內容公開於場所明顯處，<span className="term-warn">簽署後此契約即生效</span>。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">三、寵物、甲方及乙方相關資料</h5>
+          <p>本契約記載犬、貓、甲方（飼主）及乙方（業者）之基本資料，詳如附件。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">四、服務內容說明及確認</h5>
+          <p>甲方已於美容服務實施前，充分了解並同意本次美容服務項目、內容及費用。實際服務內容與費用，<span className="term-warn">得依現場犬、貓狀況調整</span>。乙方收取犬、貓美容服務費用，<span className="term-warn">應開立憑證予甲方</span>。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">五、詢問義務與誠實告知</h5>
+          <p>乙方於美容前已向甲方詢問犬、貓個性、是否具攻擊性、疾病史、過敏史、手術史或其他特殊注意事項，<span className="term-warn">甲方應誠實告知</span>。若甲方未如實告知，致美容期間發生異常或風險者（潛在疾病急性發作、死亡等），<span className="term-warn">該結果非可歸責於乙方</span>。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">六、攻擊行為與安全中止</h5>
+          <p>美容過程中，若犬、貓出現抓、咬、緊張、強烈掙扎、持續抗拒等攻擊行為，致難以繼續接受美容服務或危及犬、貓自身或美容師安全者，屬不可歸責於雙方之事由，<span className="term-warn">乙方得立即中止美容服務</span>，未執行之項目不予收費，不保證完成所有項目。若美容服務因前述原因未完成，凡已執行洗、吹、剃、修剪等項目，仍屬已提供之服務，<span className="term-warn">乙方得就已發生之服務內容計算費用</span>。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">七、美容期間異常或死亡之處理</h5>
+          <p>美容期間如發現犬、貓有喘氣、流口水、失禁、精神不穩等應激或異常狀況，乙方應即時處理（終止美容、提供安全環境）並通知甲方，必要時送至乙方配合醫院，如非配合獸醫院之營業時間，將就近至設有24小時急診之獸醫院（夏洛克動物醫院）。如突發狀況無法及時聯絡甲方，甲方同意授權乙方緊急送醫處置，<span className="term-warn">費用由甲方負擔</span>。如該狀況非可歸責於乙方之人為疏失所致（如：摔傷、拉傷等），<span className="term-warn">乙方不負損害賠償責任</span>。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">八、毛髮打結與處理方式調整</h5>
+          <p>若現場發現犬、貓毛髮打結嚴重、貼皮結或需額外處理情形，乙方需先告知甲方後予調整處理方式（<span className="term-warn">包含剃毛</span>）及相關費用，如乙方聯繫不上甲方或未得到甲方同意，<span className="term-warn">則不予處理及額外收費</span>。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">九、甲方逾時接回犬、貓之處理方式</h5>
+          <p>乙方完成犬、貓美容服務後，甲方應依通知後三十分鐘內接回犬、貓。甲方已同意收取逾時費，<span className="term-warn">每小時新臺幣200元</span>。逾時未滿三十分鐘不收取逾時費，逾時三十分鐘起開始計算逾時費，其超過部分，未滿三十分鐘者，以半小時計算，收取100元； 超過三十分鐘以上未滿一小時者，以一小時計算，收取200元。甲方逾三日未接回犬、貓者，<span className="term-warn">乙方將通報動物保護主管機關</span>，且甲方仍需支付期間照顧費用。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">十、異常狀況及責任歸屬</h5>
+          <p>犬、貓於美容服務期間發生異常或死亡情形，若屬可歸責於乙方之事由，乙方依法負相關責任；<span className="term-warn">非可歸責於乙方者，乙方不負賠償責任</span>。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">十一、個人資料保護</h5>
+          <p>甲方同意個資用於服務聯繫，乙方予保密，<span className="term-warn">非經甲方同意，乙方不得對外揭露</span>（除政府單位要求）。甲方同意無償授權犬、貓影像用於官方宣傳，若不同意請提前告知。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">十二、申訴處理及管轄法院</h5>
+          <p>甲方對乙方提供之犬、貓美容服務有不滿意時，乙方將有專人接受申訴、協商。因本契約涉訟者，甲乙雙方同意以<span className="term-warn">台中地方法院</span>為第一審管轄法院。</p>
+        </div>
+
+        <div className="pb-2">
+          <h5 className="font-black text-milk-deep mb-1">十三、其他約定事項</h5>
+          <p>乙方因安全考量，未接待：未完成三劑疫苗之幼貓、接種疫苗一周內、有傳染風險（如打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血…等狀況）及心臟病、癲癇、嚴重呼吸道疾病之貓咪，<span className="term-warn">有傳染風險需額外收取清潔費用3000元，如經店家判斷太嚴重須由飼主馬上接回並終止合約（也需付清潔費用，費用由店家規定不得異議！）</span></p>
+        </div>
+
+      </div>
+    )}
+  </TermsModal>
+)}
+
+{activeModal === 'highrisk' && (
+  <TermsModal
+    title={type === 'boarding' ? "高風險寵物寄養同意聲明" : "高風險寵物美容同意聲明"}
+    onClose={() => setActiveModal(null)}
+    onAgree={() => setFormData(prev => ({ ...prev, agreeHighRisk: true }))}
+  >
+    {type === 'boarding' ? (
+      <div className="space-y-4 text-sm leading-relaxed font-hand" style={{ color: 'var(--ink)' }}>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <p>針對高齡、幼齡、過往病史或行為敏感寵物之特別約定。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">一、飼主誠實告知義務</h5>
+          <p>飼主確認已如實告知寵物狀況（年齡、心臟病/癲癇等病史、懷孕、過敏、攻擊紀錄等）。</p>
+          <p className="text-red-500 font-bold">※若因未告知或提供不實資訊，導致店家無法預見之風險發生，責任由飼主自負。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">二、高齡與特殊健康狀況風險</h5>
+          <p>• 風險認知：高齡、幼齡或慢性病寵物，對壓力耐受度較低。</p>
+          <p>• 突發狀況：寄養期間可能因緊張誘發休克、舊疾復發或不可預期之風險。</p>
+          <p>• 免責聲明：若非因店家故意或重大過失，而是源於寵物自身健康導致之不利結果，本工作室不負損害賠償責任。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">三、攻擊性與行為安全防護</h5>
+          <p>若寵物出現攻擊或過度躁動，授權店家採取必要防護（如頭套、保定）。若經判斷危及安全，得隨時中止服務，費用依進度收取。</p>
+        </div>
+
+        <div className="pb-2">
+          <h5 className="font-black text-milk-deep mb-1">四、緊急醫療處置</h5>
+          <p>發生緊急狀況時，同意店家優先送往指定或就近動物醫院，相關費用由飼主負擔。</p>
+        </div>
+
+      </div>
+    ) : (
+      <div className="space-y-4 text-sm leading-relaxed font-hand" style={{ color: 'var(--ink)' }}>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <p>針對高齡、幼齡、過往病史或行為敏感寵物之特別約定。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">一、飼主誠實告知義務</h5>
+          <p>飼主確認已如實告知寵物狀況（年齡、心臟病/癲癇等病史、懷孕、過敏、攻擊紀錄等）。</p>
+          <p className="text-red-500 font-bold">※若因未告知或提供不實資訊，導致店家無法預見之風險發生，責任由飼主自負。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">二、高齡與特殊健康狀況風險</h5>
+          <p>• 風險認知：高齡、幼齡或慢性病寵物，對壓力耐受度較低。</p>
+          <p>• 突發狀況：美容過程可能因緊張誘發休克、舊疾復發或不可預期之風險。</p>
+          <p>• 免責聲明：若非因店家故意或重大過失，而是源於寵物自身健康導致之不利結果，本工作室不負損害賠償責任。</p>
+        </div>
+
+        <div className="pb-4 border-b border-milk-soft">
+          <h5 className="font-black text-milk-deep mb-1">三、攻擊性與行為安全防護</h5>
+          <p>若寵物出現攻擊或過度躁動，授權店家採取必要防護（如頭套、保定）。若經判斷危及安全，得隨時中止服務，費用依進度收取。</p>
+        </div>
+
+        <div className="pb-2">
+          <h5 className="font-black text-milk-deep mb-1">四、緊急醫療處置</h5>
+          <p>發生緊急狀況時，同意店家優先送往指定或就近動物醫院，相關費用由飼主負擔。</p>
+        </div>
+
+      </div>
+    )}
+  </TermsModal>
+)}
+{showSig && (
+  <SignatureModal
+    onSave={(data) => {
+      setSigImage(data);
+      setSigTime(new Date());
+      setShowSig(false);
+    }}
+    onClose={() => setShowSig(false)}
+  />
+)}
       </div>
     );
   };
@@ -517,6 +985,15 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
       --glass: rgba(255, 255, 255, 0.78);
       --stroke: rgba(255, 255, 255, 0.65);
     }
+/* ✅補上自訂顏色 class，避免 Tailwind 找不到 */
+.bg-milk-deep { background: var(--milk-deep) !important; }
+.bg-milk-soft { background: var(--milk-soft) !important; }
+.bg-milk { background: var(--milk) !important; }
+.text-milk-deep { color: var(--milk-deep) !important; }
+.text-ink { color: var(--ink) !important; }
+.text-sub { color: var(--sub) !important; }
+.border-milk-soft { border-color: var(--milk-soft) !important; }
+.border-milk { border-color: var(--milk) !important; }
 
     /* 全域按鈕基礎樣式 */
     .btn-choice {
@@ -1093,6 +1570,103 @@ petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
       .logo-wrap img { width: 130px; height: 130px; }
       .page-title { font-size: 1.4rem; }
     }
+    .font-hand{
+  font-family: "JasonHandwriting", sans-serif !important;
+}
+.term-card{
+  background:#fff;
+  border:1px solid var(--milk-soft);
+  border-radius:22px;
+  padding:16px;
+  box-shadow:0 6px 14px rgba(0,0,0,0.05);
+}
+
+.term-card-warn{
+  background:#fff;                 /* 跟普通卡片一樣 */
+  border-color: var(--milk-soft);  /* 跟普通卡片一樣 */
+}
+
+.term-badge{
+  background:var(--milk-deep);
+  color:#fff;
+  font-size:11px;
+  font-weight:800;
+  padding:2px 10px;
+  border-radius:999px;
+}
+
+.term-icon{
+  width:22px;
+  height:22px;
+  display:grid;
+  place-items:center;
+  background:#ffecec;
+  border-radius:50%;
+  color:#e34b4b;
+}
+
+.term-warn{
+  background: transparent;   
+  color: #d94646;
+  padding: 0;              
+  border-radius: 0;        
+  font-weight: 700;
+}
+.mv-risk-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid #ffbcbc;
+  border-radius: 18px;
+  background: #fffafa;
+  box-shadow: 0 8px 18px rgba(255, 90, 90, 0.08);
+}
+
+.mv-risk-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #ffecec;
+  display: grid;
+  place-items: center;
+  color: #ff4d4d;
+}
+
+.mv-risk-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mv-risk-title {
+  font-weight: 900;
+  font-size: 0.9rem;
+  color: #e63b3b;
+}
+
+.mv-risk-desc {
+  font-size: 0.7rem;
+  color: #a66b6b;
+  margin-top: 2px;
+}
+
+.mv-risk-btn {
+  margin-left: auto;
+  padding: 6px 14px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  border-radius: 999px;
+  border: none;
+  background: #ff5a5a;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 3px 6px rgba(255, 90, 90, 0.25);
+  transition: transform 0.15s;
+}
+
+.mv-risk-btn:active {
+  transform: scale(0.96);
+}
   </style>
 </head>
 
