@@ -925,6 +925,557 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
       </div>
     );
   };
+// --- 子元件 5：緬因貓詢問表單 (問卷版) ---
+const MaineCoonForm = ({ onBack }) => {
+  useEffect(() => lucide.createIcons(), []);
+  const [step, setStep] = useState('select'); // ✅ 先選擇頁
+  const [tab, setTab] = useState('kitten');
+
+  const [kitten, setKitten] = useState({
+    name: '', gender: '', age: '', contact: '',
+    experience: [], experienceOther: '',
+    breeds: [], breedOther: '',
+    catsNow: '',
+    desiredGender: '',
+    colors: [], colorOther: '',
+    priceRange: '', monthlyBudget: '',
+    knowledgeAck: false,
+    lifetimeCommit: '',
+    ackCommit: false,
+    halfPriceOptions: []
+  });
+
+const [retired, setRetired] = useState({
+  experience: [], experienceOther: '',
+  catsNow: '',
+  residentPersonality: [], residentPersonalityOther: '',
+  expYears: '', expYearsOther: '',
+  acceptable: [],
+  savings: '', savingsOther: '',
+  provide: [],
+  promisesAck: false,
+  statementsAck: false,
+  understandFinal: false,
+  halfPriceOptions: [],
+  name: '', age: '', gender: '', job: '', contact: '', city: '',
+  homeEnv: '', homeEnvOther: ''
+});
+
+  const toggleArray = (state, setState, key, value) => {
+    const current = Array.isArray(state[key]) ? state[key] : [];
+    const next = current.includes(value)
+      ? current.filter(v => v !== value)
+      : [...current, value];
+    setState({ ...state, [key]: next });
+  };
+
+  const handleSubmit = () => {
+    if (tab === 'kitten' && !kitten.ackCommit) {
+      alert("請勾選「我已準備好並願意承諾」才能送出");
+      return;
+    }
+    if (tab === 'retired' && !retired.understandFinal) {
+      alert("請勾選「我已了解並同意」才能送出");
+      return;
+    }
+    alert("✅ 已送出表單（尚未連接 Supabase）");
+  };
+
+  const submitReady = tab === 'kitten'
+    ? kitten.ackCommit
+    : retired.understandFinal;
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 survey">
+      <div className="px-2 mb-6 text-center">
+        <h2 className="text-2xl font-black text-ink tracking-tight">緬因貓詢問</h2>
+        <p className="text-[12px] uppercase tracking-[0.2em] text-sub font-bold opacity-60">
+          Maine Coon Inquiry
+        </p>
+      </div>
+
+      {/* ✅ 先選擇頁 */}
+{step === 'select' && (
+  <div className="px-2">
+    <div className="select-hero">
+      <div className="select-badge">STEP 1</div>
+      <h3 className="select-title">請選擇詢問類型</h3>
+      <p className="select-sub">Choose inquiry type</p>
+    </div>
+
+    <div className="select-grid">
+      <button
+        className="select-card kitten"
+        onClick={() => { setTab('kitten'); setStep('form'); }}
+      >
+        <div className="select-icon"><i data-lucide="sparkles"></i></div>
+        <div>
+          <div className="select-card-title">幼貓詢問</div>
+          <div className="select-card-desc">適合準備迎接新成員的家庭</div>
+        </div>
+        <div className="select-tag">KITTEN</div>
+      </button>
+
+      <button
+        className="select-card retired"
+        onClick={() => { setTab('retired'); setStep('form'); }}
+      >
+        <div className="select-icon"><i data-lucide="heart"></i></div>
+        <div>
+          <div className="select-card-title">退役貓領養</div>
+          <div className="select-card-desc">給成貓溫柔的第二個家</div>
+        </div>
+        <div className="select-tag">RETIRED</div>
+      </button>
+    </div>
+
+    <div className="select-footer">
+      <button className="select-back" onClick={onBack}>返回首頁</button>
+    </div>
+  </div>
+)}
+      {/* ✅ 進入表單後才顯示分頁 */}
+      {step === 'form' && (
+        <>
+          <div className="flex gap-2 px-2 mb-6">
+            <button className={`mv-tab ${tab === 'kitten' ? 'active' : ''}`} onClick={() => setTab('kitten')}>幼貓詢問</button>
+            <button className={`mv-tab ${tab === 'retired' ? 'active' : ''}`} onClick={() => setTab('retired')}>退役貓領養</button>
+          </div>
+
+          {/* 幼貓詢問 */}
+          {tab === 'kitten' && (
+            <div className="px-2">
+              {/* 1 基本資料 */}
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">1</span>基本資料</div>
+                <div className="qn-grid-2">
+                  <div>
+                    <div className="qn-label">姓名</div>
+                    <input className="input-style" value={kitten.name}
+                      onChange={e=>setKitten({...kitten,name:e.target.value})}/>
+                  </div>
+                  <div>
+                    <div className="qn-label">年齡</div>
+                    <input className="input-style" value={kitten.age}
+                      onChange={e=>setKitten({...kitten,age:e.target.value})}/>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="qn-label">性別</div>
+                  <div className="qn-options qn-grid-2">
+                    {['男生','女生'].map(v=>(
+                      <label key={v}>
+                        <input type="radio" name="gender" checked={kitten.gender===v}
+                          onChange={()=>setKitten({...kitten,gender:v})}/>
+                        {v}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="qn-label">聯繫方式 (手機 / LINE / IG)</div>
+                  <input className="input-style" value={kitten.contact}
+                    onChange={e=>setKitten({...kitten,contact:e.target.value})}/>
+                </div>
+              </div>
+
+              {/* 2 是否養過貓咪 */}
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">2</span>是否養過貓咪？(可複選)</div>
+                <div className="qn-options">
+                  {['是，仍在飼養','是，不在身邊','沒有經驗','其他'].map(v=>(
+                    <label key={v}>
+                      <input type="checkbox" checked={kitten.experience.includes(v)}
+                        onChange={()=>toggleArray(kitten,setKitten,'experience',v)}/>
+                      {v}
+                    </label>
+                  ))}
+                </div>
+                {kitten.experience.includes('其他') && (
+                  <input className="input-style mt-3" placeholder="其他" value={kitten.experienceOther}
+                    onChange={e=>setKitten({...kitten,experienceOther:e.target.value})}/>
+                )}
+              </div>
+
+              {/* 3 曾經飼養品種 */}
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">3</span>曾經飼養品種？(可複選)</div>
+                <div className="qn-options">
+                  {['沒有養過','米克斯','布偶貓','緬因貓','英/美國短毛貓','英/美國長毛貓','其他'].map(v=>(
+                    <label key={v}>
+                      <input type="checkbox" checked={kitten.breeds.includes(v)}
+                        onChange={()=>toggleArray(kitten,setKitten,'breeds',v)}/>
+                      {v}
+                    </label>
+                  ))}
+                </div>
+                {kitten.breeds.includes('其他') && (
+                  <input className="input-style mt-3" placeholder="其他" value={kitten.breedOther}
+                    onChange={e=>setKitten({...kitten,breedOther:e.target.value})}/>
+                )}
+              </div>
+
+              {/* 4 目前貓數 */}
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">4</span>家裡目前有幾隻貓？</div>
+                <input className="input-style mt-2" value={kitten.catsNow}
+                  onChange={e=>setKitten({...kitten,catsNow:e.target.value})}/>
+              </div>
+
+              {/* 5 想找貓咪性別 */}
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">5</span>想找貓咪性別？</div>
+                <div className="qn-options qn-grid-3">
+                  {['公','母','都可以'].map(v=>(
+                    <label key={v}>
+                      <input
+                        type="radio"
+                        name="desiredGender"
+                        checked={kitten.desiredGender===v}
+                        onChange={()=>setKitten({...kitten,desiredGender:v})}
+                      />
+                      {v}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 6 花色 */}
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">6</span>想找什麼花色？(可複選)</div>
+                <div className="qn-options">
+                  {['都可以','黑色','白色','三花','玳瑁','藍色','銀色','棕色','橘色','乳色','凱米爾','其他'].map(v=>(
+                    <label key={v}>
+                      <input type="checkbox" checked={kitten.colors.includes(v)}
+                        onChange={()=>toggleArray(kitten,setKitten,'colors',v)}/>
+                      {v}
+                    </label>
+                  ))}
+                </div>
+                {kitten.colors.includes('其他') && (
+                  <input className="input-style mt-3" placeholder="其他花色" value={kitten.colorOther}
+                    onChange={e=>setKitten({...kitten,colorOther:e.target.value})}/>
+                )}
+              </div>
+
+              {/* 7 價格預期 */}
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">7</span>價格預期</div>
+                <div className="qn-label">期待價格區間(不影響報價)</div>
+                <input className="input-style mb-3" value={kitten.priceRange}
+                  onChange={e=>setKitten({...kitten,priceRange:e.target.value})}/>
+                <div className="qn-label">預計每月餵養預算</div>
+                <input className="input-style" value={kitten.monthlyBudget}
+                  onChange={e=>setKitten({...kitten,monthlyBudget:e.target.value})}/>
+              </div>
+
+              {/* 8 是否了解緬因貓之優缺點 */}
+              <div className="qn-card qn-ack">
+                <div className="qn-title"><span className="qn-num">8</span>是否了解緬因貓之優缺點？</div>
+                <div className="qn-note">
+                  • 純種貓可能有遺傳疾病風險<br/>
+                  • 需定期美容、梳理<br/>
+                  • 夏季需開冷氣<br/>
+                  • 食量與活動力較大<br/>
+                  • 成長期長，約3歲定型<br/>
+                  • 若空間過小或不喜掉毛者較不適合
+                </div>
+                <label className={`qn-check ${kitten.ackTraits ? 'active' : ''}`}>
+                  <input type="checkbox" checked={kitten.ackTraits}
+                    onChange={e=>setKitten({...kitten,ackTraits:e.target.checked})}/>
+                  <span className="qn-check-box">✓</span>
+                  我已了解以上內容
+                </label>
+              </div>
+
+              {/* 9 終養承諾 */}
+              <div className="qn-card qn-ack">
+                <div className="qn-title"><span className="qn-num">9</span>終養承諾</div>
+                <div className="qn-note">
+                  是否已準備好負責貓咪生活所需與醫療照顧直到生命盡頭？
+                  不因搬家、生病、年老或行為問題而遺棄。
+                </div>
+                <label className={`qn-check ${kitten.ackCommit ? 'active' : ''}`}>
+                  <input type="checkbox" checked={kitten.ackCommit}
+                    onChange={e=>setKitten({...kitten,ackCommit:e.target.checked})}/>
+                  <span className="qn-check-box">✓</span>
+                  我已準備好並願意承諾
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* ✅ 退役貓領養*/}
+          {tab === 'retired' && (
+            <div className="px-2">
+
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">1</span>退役成貓領養意願申請表</div>
+                <div className="qn-note">
+                  本貓舍始終以貓隻福祉與生活品質為最高原則，並深信每一隻完成繁育階段的成貓，皆應在被尊重與妥善照顧的前提下，銜接下一段穩定的家庭生活。<br/><br/>
+                  本次送養並非屬於一般性免費領養。貓舍將自行吸收貓隻既往之飼養、醫療及絕育相關費用，惟為確保領養人具備相應責任意識，申請者需配合捐款新台幣參萬元整至合法立案之公益機構，並提供正式捐款證明，方得列入送養資格審核。<br/><br/>
+                  本表單僅作為退役成貓領養意願與條件之初步評估使用，填寫並不代表必然進入後續送養程序。
+                </div>
+              </div>
+
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">2</span>是否養過貓？(可複選)</div>
+                <div className="qn-options">
+                  {['有，仍在飼養','有，不在身邊','沒有經驗','其他'].map(v=>(
+                    <label key={v}>
+                      <input type="checkbox" checked={retired.experience.includes(v)}
+                        onChange={()=>toggleArray(retired,setRetired,'experience',v)}/>
+                      {v}
+                    </label>
+                  ))}
+                </div>
+                {retired.experience.includes('其他') && (
+                  <input className="input-style mt-3" placeholder="其他" value={retired.experienceOther}
+                    onChange={e=>setRetired({...retired,experienceOther:e.target.value})}/>
+                )}
+              </div>
+
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">3</span>家裡目前有幾隻貓？</div>
+                <input className="input-style" value={retired.catsNow}
+                  onChange={e=>setRetired({...retired,catsNow:e.target.value})}/>
+              </div>
+
+<div className="qn-card">
+  <div className="qn-title"><span className="qn-num">4</span>家中「原住貓」的個性？(可複選)</div>
+  <div className="qn-options">
+    {['家中目前沒貓','親人','不親人','親貓','不親貓','活潑好動','穩定安靜','其他'].map(v=>(
+      <label key={v}>
+        <input type="checkbox" checked={retired.residentPersonality.includes(v)}
+          onChange={()=>toggleArray(retired,setRetired,'residentPersonality',v)}/>
+        {v}
+      </label>
+    ))}
+  </div>
+  {retired.residentPersonality.includes('其他') && (
+    <input
+      className="input-style mt-3"
+      placeholder="請輸入其他個性"
+      value={retired.residentPersonalityOther}
+      onChange={e=>setRetired({...retired,residentPersonalityOther:e.target.value})}
+    />
+  )}
+</div>
+
+<div className="qn-card">
+  <div className="qn-title"><span className="qn-num">5</span>養貓經驗有幾年？</div>
+  <div className="qn-options">
+    {['沒有養過貓','一年內','2-5年','6-10年','11-15年','16年以上','其他'].map(v=>(
+      <label key={v}>
+        <input type="radio" name="expYears"
+          checked={retired.expYears===v}
+          onChange={()=>setRetired({...retired,expYears:v})}/>
+        {v}
+      </label>
+    ))}
+  </div>
+  {retired.expYears==='其他' && (
+    <input
+      className="input-style mt-3"
+      placeholder="請輸入年數"
+      value={retired.expYearsOther}
+      onChange={e=>setRetired({...retired,expYearsOther:e.target.value})}
+    />
+  )}
+</div>
+
+              <div className="qn-card">
+<div className="qn-title"><span className="qn-num">6</span>可接受的讓渡狀況(可複選)</div>
+<div className="qn-options one-col">
+                  {[
+                    '成貓可能較不親人但沒攻擊性',
+                    '成貓可能較不親貓',
+                    '成貓需要較長時間適應新環境',
+                    '成貓個性較穩定且獨立',
+                    '成貓需長期追蹤健康與醫療照顧',
+                    '成貓因發情後才絕育，可能大小便不穩定',
+                    '能接受退役母貓體型較公貓小'
+                  ].map(v=>(
+                    <label key={v}>
+                      <input type="checkbox" checked={retired.acceptable.includes(v)}
+                        onChange={()=>toggleArray(retired,setRetired,'acceptable',v)}/>
+                      {v}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+<div className="qn-card">
+  <div className="qn-title">
+    <span className="qn-num">7</span>
+    是否有足夠存款(建議10萬以上)可以承擔毛孩遇到不可預期的突發疾病之醫療費用？
+  </div>
+  <div className="qn-note">※ 建議至少準備 10 萬元以上的緊急醫療預備金</div>
+
+  <div className="qn-options qn-grid-3 qn-compact">
+    {['是','否','其他'].map(v=>(
+      <label key={v}>
+        <input type="radio" name="savings"
+          checked={retired.savings===v}
+          onChange={()=>setRetired({...retired,savings:v})}/>
+        {v}
+      </label>
+    ))}
+  </div>
+
+  {retired.savings==='其他' && (
+    <input className="input-style mt-3" placeholder="其他" value={retired.savingsOther}
+      onChange={e=>setRetired({...retired,savingsOther:e.target.value})}/>
+  )}
+</div>
+
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">8</span>願意為孩子提供(可複選)</div>
+<div className="qn-options one-col">
+                  {['良好的飼養飲食','足夠的垂直空間(跳台)','定期美容','等待孩子願意融入家庭'].map(v=>(
+                    <label key={v}>
+                      <input type="checkbox" checked={retired.provide.includes(v)}
+                        onChange={()=>toggleArray(retired,setRetired,'provide',v)}/>
+                      {v}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+<div className="qn-card qn-ack">
+  <div className="qn-title"><span className="qn-num">9</span>同意並承諾事項</div>
+  <div className="qn-note">
+    • 領養後不得轉讓、買賣或進行任何形式之繁殖<br/>
+    • 若未來無法續養，未經貓舍討論不得自行處理或轉送他人<br/>
+    • 未經與貓舍討論就隨意轉送，視同與貓舍購買後再行轉送，須補給貓舍新台幣16萬元整<br/>
+    • 即使成貓適應期較長或需調整生活習慣，仍願意耐心陪伴，不得以此為由退養<br/>
+    • 了解領養退役貓並非買賣行為
+  </div>
+  <label className={`qn-check ${retired.promisesAck ? 'active' : ''}`}>
+    <input type="checkbox" checked={retired.promisesAck}
+      onChange={e=>setRetired({...retired,promisesAck:e.target.checked})}/>
+    <span className="qn-check-box">✓</span>
+    我已了解並同意以上承諾
+  </label>
+</div>
+
+<div className="qn-card qn-ack">
+  <div className="qn-title"><span className="qn-num">10</span>聲明</div>
+  <div className="qn-note">
+    • 我了解世上沒有完美的貓<br/>
+    • 我了解退役貓可能為進口成貓，因非本貓舍自行繁殖，無法完整掌握其上代健康狀況，可能存在潛在風險（如貓舍知情皆會如實告知）<br/>
+    • 我同意以喵之谷負責人名義捐款新台幣3萬元整至公益機構並提供合法收據<br/>
+    • 我了解本次為送養性質，非買賣行為<br/>
+    • 我了解完成送養後不得要求貓舍退還公益捐款，亦不提供任何形式之醫療或金錢理賠
+  </div>
+  <label className={`qn-check ${retired.statementsAck ? 'active' : ''}`}>
+    <input type="checkbox" checked={retired.statementsAck}
+      onChange={e=>setRetired({...retired,statementsAck:e.target.checked})}/>
+    <span className="qn-check-box">✓</span>
+    我已了解並同意以上聲明
+  </label>
+</div>
+
+<div className="qn-card qn-ack">
+  <div className="qn-title"><span className="qn-num">11</span>送養評估說明</div>
+  <div className="qn-note">
+    本人了解填寫此表並不代表定能獲得送養之貓咪，仍需等待適合進行讓渡之貓咪出現，並經由本貓舍進行整體條件的綜合評估。
+    最終是否進行送養，以及送養對象之決定權，皆由本貓舍全權決定。
+  </div>
+  <label className={`qn-check ${retired.understandFinal ? 'active' : ''}`}>
+    <input type="checkbox" checked={retired.understandFinal}
+      onChange={e=>setRetired({...retired,understandFinal:e.target.checked})}/>
+    <span className="qn-check-box">✓</span>
+    我已了解並同意以上說明
+  </label>
+</div>
+
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">12</span>(可不勾) 半價讓渡意願</div>
+<div className="qn-options one-col">
+                  {[
+                    '未生育過，繁殖計畫改變',
+                    '未生育過，體型較小有生產風險母貓',
+                    '未生育過，小時候生病錯過找家長時期'
+                  ].map(v=>(
+                    <label key={v}>
+                      <input type="checkbox" checked={retired.halfPriceOptions.includes(v)}
+                        onChange={()=>toggleArray(retired,setRetired,'halfPriceOptions',v)}/>
+                      {v}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="qn-card">
+                <div className="qn-title"><span className="qn-num">13</span>基本資料</div>
+                <div className="qn-grid-2">
+                  <div><div className="qn-label">姓名</div>
+                    <input className="input-style" value={retired.name}
+                      onChange={e=>setRetired({...retired,name:e.target.value})}/>
+                  </div>
+                  <div><div className="qn-label">年齡</div>
+                    <input className="input-style" value={retired.age}
+                      onChange={e=>setRetired({...retired,age:e.target.value})}/>
+                  </div>
+                  <div><div className="qn-label">性別</div>
+                    <input className="input-style" value={retired.gender}
+                      onChange={e=>setRetired({...retired,gender:e.target.value})}/>
+                  </div>
+                  <div><div className="qn-label">職業類別與內容</div>
+                    <input className="input-style" value={retired.job}
+                      onChange={e=>setRetired({...retired,job:e.target.value})}/>
+                  </div>
+                  <div><div className="qn-label">聯絡方式</div>
+                    <input className="input-style" value={retired.contact}
+                      onChange={e=>setRetired({...retired,contact:e.target.value})}/>
+                  </div>
+                  <div><div className="qn-label">居住城市</div>
+                    <input className="input-style" value={retired.city}
+                      onChange={e=>setRetired({...retired,city:e.target.value})}/>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <div className="qn-label">住家環境</div>
+                  <div className="qn-options">
+                    {['公寓(有防護網)','公寓(尚未添加防護網)','電梯大樓','透天','其他'].map(v=>(
+                      <label key={v}>
+                        <input type="radio" name="homeEnv"
+                          checked={retired.homeEnv===v}
+                          onChange={()=>setRetired({...retired,homeEnv:v})}/>
+                        {v}
+                      </label>
+                    ))}
+                  </div>
+                  {retired.homeEnv==='其他' && (
+                    <input className="input-style mt-3" placeholder="其他"
+                      value={retired.homeEnvOther}
+                      onChange={e=>setRetired({...retired,homeEnvOther:e.target.value})}/>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* 按鈕 */}
+          <div className="grid grid-cols-2 gap-4 px-2 mt-8">
+            <button className="py-4 bg-white/50 text-sub rounded-2xl font-bold shadow-sm" onClick={onBack}>返回</button>
+            <button
+              className={`py-4 rounded-2xl font-bold shadow-lg ${
+                submitReady ? 'bg-milk-deep text-white' : 'bg-gray-300 text-white'
+              }`}
+              onClick={handleSubmit}
+            >
+              送出
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
   // --- 主程式：控制中心 ---
   function App() {
@@ -955,7 +1506,8 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
           {view === 'home' && <HomeView onNavigate={navigateTo} />}
           {view === 'grooming' && <ContractForm title="純貓美容契約" type="grooming" onBack={() => navigateTo('home')} />}
           {view === 'boarding' && <ContractForm title="純貓住宿契約" type="boarding" onBack={() => navigateTo('home')} />}
-        </main>
+          {view === 'mainecoon' && <MaineCoonForm onBack={() => navigateTo('home')} />}
+            </main>
       </div>
     );
   }
@@ -1489,36 +2041,6 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
       resize: vertical;
     }
 
-    /* 簽名板全螢幕樣式 */
-    #signature-overlay {
-      position: fixed;
-      inset: 0;
-      background: #fff;
-      z-index: 9999;
-      display: none;
-      flex-direction: column;
-    }
-    #signature-canvas {
-      flex: 1;
-      cursor: crosshair;
-      touch-action: none;
-    }
-    .sig-tools {
-      padding: 20px;
-      display: flex;
-      gap: 15px;
-      justify-content: center;
-      background: var(--bg);
-      border-top: 1px solid var(--milk);
-    }
-    .sig-btn {
-      padding: 12px 30px;
-      border-radius: 999px;
-      border: none;
-      font-family: "JasonHandwriting";
-      font-size: 1rem;
-      cursor: pointer;
-    }
     .sig-confirm { background: var(--milk-deep); color: #fff; }
     .sig-clear { background: var(--milk-soft); color: var(--ink); }
 
@@ -1666,6 +2188,461 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
 
 .mv-risk-btn:active {
   transform: scale(0.96);
+}
+.input-style {
+  width: 100%;
+  background: rgba(255,255,255,0.7);
+  border: 1px solid var(--milk-soft);
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 0.85rem;
+  outline: none;
+}
+.mv-card {
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(255,255,255,0.8);
+  border-radius: 26px;
+  padding: 20px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.05);
+}
+
+.mv-title {
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: var(--milk-deep);
+  margin-bottom: 12px;
+  letter-spacing: 0.1em;
+}
+
+.mv-sub {
+  font-size: 0.75rem;
+  color: var(--sub);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.mv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.mv-pill {
+  border: 2px solid var(--milk-soft);
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--sub);
+  transition: all 0.2s;
+}
+
+.mv-pill.active {
+  border-color: var(--milk-deep);
+  color: var(--milk-deep);
+  background: rgba(183,137,99,0.08);
+}
+
+.mv-tab {
+  flex: 1;
+  padding: 12px;
+  border-radius: 18px;
+  font-weight: 900;
+  border: 2px solid var(--milk-soft);
+  color: var(--sub);
+  background: white;
+}
+
+.mv-tab.active {
+  background: var(--milk-deep);
+  color: white;
+  border-color: var(--milk-deep);
+}
+
+.mv-note {
+  background: rgba(255,255,255,0.7);
+  border: 1px dashed var(--milk-soft);
+  border-radius: 20px;
+  padding: 16px;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.mv-checkline {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.mv-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.mv-info {
+  background: rgba(255,255,255,0.85);
+  border: 1px solid var(--milk-soft);
+}
+
+.mv-pledge {
+  border: 2px solid rgba(183,137,99,0.25);
+  background: rgba(255,255,255,0.9);
+}
+
+.mv-pledge-sub {
+  font-size: 0.75rem;
+  color: var(--sub);
+  margin-top: 6px;
+  padding-left: 22px;
+}
+
+/* ========= Maine Coon 高級感統一問卷 UI ========= */
+.survey{
+  font-family:"I.Ming","Noto Sans TC",sans-serif;
+  color:var(--ink);
+}
+
+/* 兩欄排版 */
+.qn-grid-2{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+@media(max-width:520px){
+  .qn-grid-2{grid-template-columns:1fr;}
+}
+
+/* 卡片 */
+.qn-card{
+  background:linear-gradient(180deg,#fffdfb 0%,#fffaf6 100%);
+  border:1px solid rgba(210,190,165,.55);
+  border-radius:26px;
+  padding:22px;
+  margin-bottom:22px;
+  box-shadow:0 16px 30px rgba(73,58,47,.08);
+}
+
+/* 標題 */
+.qn-title{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.04em;
+  color:var(--ink);
+  margin-bottom:14px;
+}
+
+/* 題號 */
+.qn-num{
+  width:30px;height:30px;
+  border-radius:12px;
+  background:linear-gradient(180deg,#c59a72,#b78963);
+  color:#fff;
+  font-size:13px;
+  font-weight:800;
+  display:grid;
+  place-items:center;
+  box-shadow:0 6px 12px rgba(0,0,0,.08);
+}
+
+/* 標籤 */
+.qn-label{
+  font-size:12px;
+  font-weight:700;
+  color:var(--sub);
+  margin-bottom:8px;
+}
+
+/* 輸入框 */
+.input-style{
+  width:100%;
+  background:#fff;
+  border:1.5px solid var(--milk-soft);
+  border-radius:14px;
+  padding:12px 14px;
+  font-size:.9rem;
+  outline:none;
+  transition:.2s;
+}
+.input-style:focus{
+  border-color:var(--milk-deep);
+  box-shadow:0 0 0 3px rgba(183,137,99,.18);
+}
+
+/* 多選 / 單選群組 */
+.qn-options{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:12px;
+}
+.qn-options.one-col{
+  grid-template-columns:1fr;
+}
+/* 選項按鈕 */
+.qn-options label{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+  border-radius:14px;
+  background:#fff;
+  border:1.5px solid var(--milk-soft);
+  font-size:13px;
+  font-weight:700;
+  color:var(--ink);
+  transition:.2s;
+  box-shadow:0 8px 16px rgba(0,0,0,.04);
+}
+.qn-options label input{display:none;}
+.qn-options label:has(input:checked){
+  border-color:var(--milk-deep);
+  background:rgba(183,137,99,.08);
+  color:var(--milk-deep);
+}
+
+/* 說明框 */
+.qn-note{
+  background:#fff7ef;
+  border:1px dashed var(--milk-soft);
+  padding:12px 14px;
+  border-radius:14px;
+  font-size:13px;
+  line-height:1.7;
+  color:var(--sub);
+}
+
+/* 勾選區 */
+.qn-check{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  font-size:13px;
+  font-weight:700;
+}
+.qn-check input{
+  width:18px;height:18px;
+  border:1.5px solid var(--milk-deep);
+  border-radius:6px;
+}
+
+/* 強調卡 */
+.qn-ack{
+  border:2px solid rgba(183,137,99,.2);
+  background:#fffdf8;
+}
+
+/* ===== Segmented (Q5 / Q12) ===== */
+.segmented{
+  display:flex;
+  gap:10px;
+  background:#f7efe6;
+  padding:6px;
+  border-radius:14px;
+  width:100%;
+  max-width:420px;
+  margin:0 auto;
+}
+.segmented.large{max-width:none;}
+
+.seg-btn{
+  flex:1;
+  text-align:center;
+  padding:10px 14px;
+  border-radius:10px;
+  font-weight:700;
+  font-size:13px;
+  color:#7a5b42;
+  cursor:pointer;
+  transition:.2s;
+}
+.seg-btn input{display:none;}
+.seg-btn.active{
+  background:#fff;
+  color:var(--milk-deep);
+  box-shadow:0 4px 10px rgba(0,0,0,.08);
+}
+
+/* ===== Tab (幼貓/退役貓) ===== */
+.mv-tab{
+  flex:1;
+  padding:12px;
+  border-radius:18px;
+  font-weight:800;
+  border:1.5px solid var(--milk-soft);
+  color:var(--sub);
+  background:#fff;
+  transition:.2s;
+}
+.mv-tab.active{
+  background:var(--milk-deep);
+  color:#fff;
+  border-color:var(--milk-deep);
+  box-shadow:0 6px 14px rgba(0,0,0,.1);
+}
+.qn-check{
+  margin-top:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  padding:12px 16px;
+  border-radius:14px;
+  border:1.5px solid var(--milk-soft);
+  background:#fff;
+  font-size:13px;
+  font-weight:700;
+  color:var(--sub);
+  cursor:pointer;
+  transition:.2s;
+  box-shadow:0 6px 12px rgba(0,0,0,0.03);
+}
+.qn-check input{display:none;}
+
+.qn-check-box{
+  width:20px;
+  height:20px;
+  border-radius:6px;
+  border:2px solid var(--milk-deep);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:13px;
+  font-weight:900;
+  color:#fff;
+  background:transparent;
+  transition:.2s;
+}
+
+.qn-check.active{
+  border-color:var(--milk-deep);
+  background:rgba(183,137,99,.08);
+  color:var(--milk-deep);
+}
+
+.qn-check.active .qn-check-box{
+  background:var(--milk-deep);
+  color:#fff;
+}
+.qn-grid-3{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+
+.qn-options.qn-grid-3 label{
+  justify-content:center;
+  text-align:center;
+}
+.qn-compact label{
+  padding:8px 6px;
+  font-size:12px;
+  border-radius:12px;
+}
+/* ====== 高級感選擇頁 ====== */
+.select-hero{
+  text-align:center;
+  margin:12px 0 24px;
+}
+.select-badge{
+  display:inline-block;
+  background:var(--milk-deep);
+  color:#fff;
+  font-size:11px;
+  font-weight:800;
+  padding:4px 12px;
+  border-radius:999px;
+  letter-spacing:.25em;
+}
+.select-title{
+  font-size:20px;
+  font-weight:900;
+  margin:10px 0 4px;
+  letter-spacing:.12em;
+}
+.select-sub{
+  font-size:12px;
+  color:var(--sub);
+  letter-spacing:.2em;
+}
+
+.select-grid{
+  display:grid;
+  gap:16px;
+}
+
+.select-card{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:18px 20px;
+  border-radius:22px;
+  border:1.5px solid rgba(210,190,165,.5);
+  background:linear-gradient(180deg,#fffdfb 0%,#fff7ef 100%);
+  box-shadow:0 14px 28px rgba(73,58,47,.12);
+  transition:.25s;
+  text-align:left;
+  position:relative;
+  overflow:hidden;
+}
+.select-card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 18px 34px rgba(73,58,47,.18);
+  border-color:var(--milk-deep);
+}
+.select-icon{
+  width:46px;
+  height:46px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  background:#fff;
+  border:1px solid var(--milk-soft);
+  color:var(--milk-deep);
+}
+.select-card-title{
+  font-size:16px;
+  font-weight:900;
+  color:var(--ink);
+}
+.select-card-desc{
+  font-size:12px;
+  color:var(--sub);
+  margin-top:2px;
+}
+.select-tag{
+  margin-left:auto;
+  font-size:10px;
+  font-weight:800;
+  color:var(--milk-deep);
+  border:1px solid var(--milk-soft);
+  padding:4px 8px;
+  border-radius:999px;
+  letter-spacing:.1em;
+}
+
+/* 返回按鈕 */
+.select-footer{
+  margin-top:22px;
+  text-align:center;
+}
+.select-back{
+  padding:12px 28px;
+  border-radius:18px;
+  font-weight:800;
+  border:1.5px solid var(--milk-soft);
+  background:#fff;
+  color:var(--sub);
+  box-shadow:0 8px 16px rgba(0,0,0,.05);
 }
   </style>
 </head>
