@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
@@ -70,6 +70,10 @@ const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
           <a href="https://www.facebook.com/profile.php?id=61577336540564" target="_blank"><i data-lucide="facebook"></i></a>
           <a href="https://line.me/R/ti/p/@463mpova?oat_content=url&ts=02031808" target="_blank"><img src="line.png" className="line-img" /></a>
         </div>
+        <a class="addr" href="https://maps.app.goo.gl/m7wQdKVCuVQXgKgL6" target="_blank">
+          <i data-lucide="map-pin"></i>
+          臺中市豐原區水源路7巷192號
+        </a>
         <p className="text-[12px] mt-4 opacity-50 tracking-widest">特寵業繁字第 S1140024 號</p>
       </div>
     </section>
@@ -273,11 +277,12 @@ const SignatureModal = ({ onSave, onClose }) => {
 const [formData, setFormData] = useState({
       ownerName: '', phone: '', idNumber: '', email: '', address: '',
       emerName: '', emerRel: '', emerPhone: '',
-petName: '', breed: '', weight: '', age: '', gender: '', neutered: '',
+petName: '', breed: '', weight: '', ageYears: '', ageMonths: '', gender: '', neutered: '',
       chip: '', chipNum: '', behavior: [], healthHistory: '', prefHospital: '',
       agreeTerms: false, agreeHighRisk: false,
       lineConfirmed: false 
     });
+
     const [showSig, setShowSig] = useState(false);
 const [sigImage, setSigImage] = useState(null);
 const [sigTime, setSigTime] = useState(null);
@@ -290,12 +295,20 @@ const [sigTime, setSigTime] = useState(null);
 
     // 高風險判斷
 const isHighRisk = (() => {
-  const ageNum = parseFloat(formData.age);
-  const ageRisk = !isNaN(ageNum) && (ageNum <= 1 || ageNum >= 8);
+  const years = parseFloat(formData.ageYears);
+  const months = parseFloat(formData.ageMonths);
+
+  const totalYears =
+    (isNaN(years) ? 0 : years) + (isNaN(months) ? 0 : months) / 12;
+
+  const hasAge = !isNaN(years) || !isNaN(months);
+  const ageRisk = hasAge && (totalYears <= 1 || totalYears >= 8);
+
   const healthRisk = formData.healthHistory === '有';
   const behaviorRisk =
     Array.isArray(formData.behavior) &&
     (formData.behavior.includes('有攻擊性') || formData.behavior.includes('會咬人'));
+
   return ageRisk || healthRisk || behaviorRisk;
 })();
 
@@ -473,10 +486,13 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
                 <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">體重 / Weight (kg)</label>
                 <input type="number" name="weight"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
               </div>
-              <div className="form-group">
-                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">年齡 / Age</label>
-                <input type="text" name="age"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
-              </div>
+<div className="form-group">
+  <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">年齡 / Age</label>
+  <div className="grid grid-cols-2 gap-2">
+    <input type="number" name="ageYears" placeholder="歲" className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
+    <input type="number" name="ageMonths" placeholder="月" className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
+  </div>
+</div>
             </div>
 
 {/* 性別 (按鈕設計) */}
@@ -2659,5 +2675,31 @@ const [retired, setRetired] = useState({
 
 <body class="style-sweet">
   <div id="root"></div>
+
+  <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js?v=1').then(function (reg) {
+
+      if (reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      reg.addEventListener('updatefound', function () {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', function () {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            newWorker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+    });
+
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      window.location.reload();
+    });
+  });
+}
+</script>
 </body>
 </html>
