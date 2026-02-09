@@ -3,7 +3,7 @@ const CACHE_NAME = 'meow-valley-v1';
 const CORE_ASSETS = [
   '/',
   '/index.html',
-  '/logo.png',
+  '/logo.jpg',
   '/line.png',
   '/manifest.json',
   '/JasonHandwriting1.ttf'
