@@ -27,6 +27,60 @@
 const supabaseUrl = "https://iqhalbrbivruokxxgycw.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxaGFsYnJiaXZydW9reHhneWN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NjI3NTcsImV4cCI6MjA4NjEzODc1N30.bbam-b8GABkUqHbvic3JEXjySLQzvYynD3aG-MnfYow";
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+// ✅ 圖片壓縮與上傳函數
+const compressImage = async (file, maxWidth = 1024, quality = 0.8) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+    };
+  });
+};
+
+const uploadToStorage = async (file, folder = 'uploads') => {
+  try {
+    const fileName = `${Date.now()}_${file.name}`;
+    const { data, error } = await supabase.storage
+      .from('meowvalley-uploads')
+      .upload(`${folder}/${fileName}`, file);
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('meowvalley-uploads')
+      .getPublicUrl(`${folder}/${fileName}`);
+
+    return publicUrl;
+  } catch (error) {
+    console.error('上傳失敗:', error);
+    throw error;
+  }
+};
   // --- 子元件 1：首頁畫面 ---
   const HomeView = ({ onNavigate }) => (
     <section className="glass-panel animate-in fade-in duration-500">
@@ -306,7 +360,13 @@ const [vaccinePreview, setVaccinePreview] = useState(null);
 const [dewormPreview, setDewormPreview] = useState(null);
     const [showSig, setShowSig] = useState(false);
 const [sigImage, setSigImage] = useState(null);
+const [isSubmitting, setIsSubmitting] = useState(false);
+const [uploadProgress, setUploadProgress] = useState(0);
 const [sigTime, setSigTime] = useState(null);
+// ✅ 舊客搜尋相關狀態
+const [isSearching, setIsSearching] = useState(false);
+const [historyRecords, setHistoryRecords] = useState([]); // 儲存搜尋結果
+const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [activeModal, setActiveModal] = useState(null);
 
     const handleChange = (e) => {
@@ -374,12 +434,219 @@ const isHighRisk = (() => {
 
   return ageRisk || healthRisk || behaviorRisk;
 })();
+// ✅ 搜尋舊客邏輯 (串接 Supabase)
+const handleSearchHistory = async () => {
+  if (!formData.phone || formData.phone.length < 9) {
+    alert("⚠️ 請先輸入完整的聯絡電話");
+    return;
+  }
 
-    const handleFinalSubmit = () => {
-const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || !sigImage;
-      if(!formData.ownerName || !sigImage) return alert("請填寫姓名並完成簽名");
-      alert("✅ 契約準備就緒！");
+  setIsSearching(true);
+  try {
+    // 呼叫 Supabase RPC 函數 (需在後端建立對應函數)
+    const { data, error } = await supabase.rpc('search_guest_history', { 
+      phone_input: formData.phone 
+    });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      alert("🔍 查無此電話的過往紀錄");
+      return;
+    }
+
+    // 整理資料：將資料庫欄位與 JSON 內容合併
+    const allRecords = data.map(r => {
+      const dbType = r.service_type || '';
+      const innerData = r.raw_data.raw_data || r.raw_data || {};
+      const jsonType = innerData.service_type || r.raw_data.service_type || '';
+      
+      // 判斷是否為住宿紀錄
+      const isBoardingRecord = 
+        dbType === 'boarding' || dbType === 'daycare' || 
+        jsonType.includes('住宿') || jsonType.includes('安親');
+
+      return {
+        ...innerData, 
+        id: r.id,
+        created_at: r.created_at,
+        source: isBoardingRecord ? 'boarding' : 'grooming'
+      };
+    });
+
+    // 核心邏輯：先以「名字」分組，每隻寵物底下保留「最新美容」與「最新住宿」
+    const petsGroup = {};
+
+    // 依照時間排序 (最新的在前)
+    allRecords.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    allRecords.forEach(r => {
+      const petName = r.pet_name?.trim();
+      if (!petName) return;
+
+      // 初始化該寵物的欄位
+      if (!petsGroup[petName]) {
+        petsGroup[petName] = { 
+          name: petName, 
+          grooming: null, 
+          boarding: null,
+          lastSeen: r.created_at 
+        };
+      }
+
+      // 如果該類型還沒有存入紀錄，就存入 (因為已經按時間排序，所以第一個遇到的一定是最新的)
+      if (r.source === 'grooming' && !petsGroup[petName].grooming) {
+        petsGroup[petName].grooming = r;
+      } else if (r.source === 'boarding' && !petsGroup[petName].boarding) {
+        petsGroup[petName].boarding = r;
+      }
+    });
+
+    // 轉為陣列並排序 (最近有來的寵物排上面)
+    const sortedPets = Object.values(petsGroup).sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen));
+
+    setHistoryRecords(sortedPets);
+    setShowHistoryModal(true);
+
+  } catch (err) {
+    console.error("搜尋舊客失敗:", err);
+    alert("搜尋失敗，請檢查網路或確認後端設定。");
+  } finally {
+    setIsSearching(false);
+  }
+};
+
+// ✅ 套用資料邏輯
+const handleApplyHistory = (record) => {
+  // 模式 1：僅填入飼主資料
+  if (record.ownerOnly) {
+    setFormData(prev => ({
+      ...prev,
+      ownerName: record.owner_name,
+      phone: record.phone,
+      email: record.email,
+      address: record.address,
+      ownerId: record.owner_id,
+      emergencyName: record.emergency_name,
+      emergencyPhone: record.emergency_phone
+    }));
+    setLineConfirmed(true);
+    setShowHistoryModal(false);
+    alert("✅ 已填入飼主基本資料。");
+    return;
+  }
+
+  // 模式 2：導入寵物完整檔案資訊
+  setFormData(prev => ({
+    ...prev,
+
+    // A. 飼主檔案 (自動補全空缺)
+    ownerName: record.owner_name || prev.ownerName,
+    phone: record.phone || prev.phone,
+    email: record.email || prev.email,
+    address: record.address || prev.address,
+    ownerId: record.owner_id || prev.ownerId,
+    emergencyName: record.emergency_name || prev.emergencyName,
+    emergencyPhone: record.emergency_phone || prev.emergencyPhone,
+
+    // B. 寵物基本身分檔案
+    petName: record.pet_name,
+    breed: record.breed,
+    weight: record.weight,
+    ageYears: record.age ? Math.floor(record.age) : '',
+    ageMonths: record.age ? Math.round((record.age % 1) * 12) : '',
+    gender: record.sex === '公' ? '公' : record.sex === '母' ? '母' : '',
+    neutered: record.fix === '是' ? '是' : '否',
+    chip: record.chip_status === '有晶片' ? '有' : record.chip_status === '有晶片(號碼不詳)' ? '不詳' : '無',
+    chipNum: record.chip_id || '',
+
+    // C. 醫療與性情檔案
+    behavior: (record.medical_history || []).length > 0 ? ['有病史'] : ['親近人'],
+    healthHistory: record.medical_status === '有' ? '有' : '無',
+    prefHospital: record.preferred_clinic || '',
+
+    // D. 住宿專屬欄位 (如果是住宿紀錄)
+    ...(record.source === 'boarding' ? {
+      serviceType: 'boarding',
+      roomType: record.room_type || '',
+      dryFreq: record.diet_type?.includes('乾糧') ? '一天一次' : '',
+      dryAmount: record.feeding_plan || '',
+      wetHas: record.diet_type?.includes('罐頭') ? '有' : '無',
+      wetAmount: '',
+      snackHas: record.diet_type?.includes('點心') ? '有' : '無',
+      snackType: record.diet_type?.includes('肉泥') ? '肉泥' : '',
+      litterType: record.litter_type || ''
+    } : {})
+  }));
+
+  setLineConfirmed(true);
+  setIsSearching(false);
+  setShowHistoryModal(false);
+  alert(`✅ 已帶入 ${record.pet_name} 的過往資料。`);
+};
+const handleFinalSubmit = async () => {
+  const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || !sigImage;
+  if(!formData.ownerName || !sigImage) return alert("請填寫姓名並完成簽名");
+  
+  setIsSubmitting(true);
+  setUploadProgress(10);
+
+  try {
+    // 1. 處理簽名檔
+    setUploadProgress(20);
+    const sigBlob = await (await fetch(sigImage)).blob();
+    const sigFile = new File([sigBlob], 'signature.png', { type: 'image/png' });
+    const sigUrl = await uploadToStorage(sigFile, 'signatures');
+    
+    // 2. 處理疫苗證明（如果有）
+    let vaccineUrl = null;
+    if (formData.vaccineProof) {
+      setUploadProgress(40);
+      const compressedVaccine = await compressImage(formData.vaccineProof);
+      vaccineUrl = await uploadToStorage(compressedVaccine, 'vaccine-proofs');
+    }
+
+    // 3. 處理驅蟲證明（如果有）
+    let dewormUrl = null;
+    if (formData.dewormProof) {
+      setUploadProgress(60);
+      const compressedDeworm = await compressImage(formData.dewormProof);
+      dewormUrl = await uploadToStorage(compressedDeworm, 'deworm-proofs');
+    }
+
+    setUploadProgress(80);
+
+    // 4. 準備要儲存的資料
+    const submissionData = {
+      ...formData,
+      sigImage: sigUrl,
+      vaccineProof: vaccineUrl,
+      dewormProof: dewormUrl,
+      submittedAt: new Date().toISOString()
     };
+
+    // 5. 儲存到資料庫（這裡需要根據你的資料表結構調整）
+    const tableName = type === 'boarding' ? 'boarding_bookings' : 'grooming_bookings';
+    const { error } = await supabase
+      .from(tableName)
+      .insert([submissionData]);
+
+    if (error) throw error;
+
+    setUploadProgress(100);
+
+    // 6. 成功後跳轉
+    setTimeout(() => {
+      window.location.hash = 'view-success';
+    }, 500);
+
+  } catch (error) {
+    console.error('提交失敗:', error);
+    alert('提交失敗，請稍後再試或聯繫店家');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
@@ -460,70 +727,129 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
 </div>
 
         
-        </div>{/* 區塊 1：甲方飼主資料 */}
-        <div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-6 text-milk-deep">
-            <div className="bg-milk-soft/30 p-1.5 rounded-lg">
-              <i data-lucide="user" className="w-4 h-4"></i>
-            </div>
-            <span className="text-xs font-black uppercase tracking-[0.2em]">(甲方)飼主基本資料</span>
-          </div>
-
-          <div className="space-y-5">
-            {/* 姓名與電話並排 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="form-group">
-                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">姓名 / Name<span className="text-red-500">*</span></label>
-                <input type="text" name="ownerName" placeholder="填寫完整姓名" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
-              </div>
-              <div className="form-group">
-                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電話 / Mobile<span className="text-red-500">*</span></label>
-                <input type="tel" name="phone" placeholder="09xx-xxxxxx" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
-              </div>
-            </div>
-
-            {/* 身分證字號 */}
-            <div className="form-group">
-              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">身分證字號 / ID Number<span className="text-red-500">*</span></label>
-              <input type="text" name="idNumber" placeholder="請填寫身分證字號" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
-            </div>
-
-            {/* 電子郵件 */}
-            <div className="form-group">
-              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電子郵件 / E-mail<span className="text-red-500">*</span></label>
-              <input type="email" name="email" placeholder="寄送契約副本用" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
-            </div>
-
-            {/* 通訊地址 */}
-            <div className="form-group">
-              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">通訊地址 / Address<span className="text-red-500">*</span></label>
-              <input type="text" name="address" placeholder="請填寫完整地址" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
-            </div>
-
-            {/* 緊急聯絡人區塊 */}
-            <div className="mt-8 pt-6 border-t border-milk-soft/50">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-[12px] font-black text-milk-deep uppercase tracking-widest bg-milk-soft/20 px-2 py-0.5 rounded">緊急聯絡人</span>
-                <span className="text-[12px] text-sub opacity-70">(聯絡不到飼主時)</span>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div className="form-group">
-                  <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人姓名<span className="text-red-500">*</span></label>
-                  <input type="text" name="emerName" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
-                </div>
-                <div className="form-group">
-                  <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">關係<span className="text-red-500">*</span></label>
-                  <input type="text" name="emerRel" placeholder="如: 配偶、家人" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人電話<span className="text-red-500">*</span></label>
-                <input type="tel" name="emerPhone" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
-              </div>
-            </div>
-          </div>
         </div>
+{/* 區塊 1：甲方飼主資料 */}
+<div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm">
+  <div className="flex items-center gap-2 mb-6 text-milk-deep">
+    <div className="bg-milk-soft/30 p-1.5 rounded-lg">
+      <i data-lucide="user" className="w-4 h-4"></i>
+    </div>
+    <span className="text-xs font-black uppercase tracking-[0.2em]">(甲方)飼主基本資料</span>
+  </div>
+
+  <div className="space-y-5">
+    {/* 姓名（獨立一行） */}
+    <div className="form-group">
+      <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">姓名 / Name<span className="text-red-500">*</span></label>
+      <input 
+        type="text" 
+        name="ownerName" 
+        placeholder="填寫完整姓名" 
+        className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
+        onChange={handleChange} 
+      />
+    </div>
+
+    {/* 電話（獨立一行 + 搜尋按鈕） */}
+    <div className="form-group">
+      <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電話 / Mobile<span className="text-red-500">*</span></label>
+      <div className="flex gap-2">
+        <input 
+          type="tel" 
+          name="phone" 
+          placeholder="09xxxxxxxx" 
+          className="flex-1 bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
+          onChange={handleChange} 
+          value={formData.phone}
+        />
+        <button 
+          type="button"
+          onClick={handleSearchHistory}
+          disabled={isSearching}
+          className="px-4 bg-milk-deep text-white rounded-xl font-bold text-sm shadow-md hover:bg-[#7a5e47] flex items-center gap-1 whitespace-nowrap disabled:opacity-50"
+        >
+          {isSearching ? <i data-lucide="loader-2" className="animate-spin" size={14}/> : <i data-lucide="search" size={14}/>}
+          舊客
+        </button>
+      </div>
+    </div>
+
+    {/* 身分證字號 */}
+    <div className="form-group">
+      <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">身分證字號 / ID Number<span className="text-red-500">*</span></label>
+      <input 
+        type="text" 
+        name="idNumber" 
+        placeholder="請填寫身分證字號" 
+        className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
+        onChange={handleChange} 
+      />
+    </div>
+
+    {/* 電子郵件 */}
+    <div className="form-group">
+      <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電子郵件 / E-mail<span className="text-red-500">*</span></label>
+      <input 
+        type="email" 
+        name="email" 
+        placeholder="寄送契約副本用" 
+        className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
+        onChange={handleChange} 
+      />
+    </div>
+
+    {/* 通訊地址 */}
+    <div className="form-group">
+      <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">通訊地址 / Address<span className="text-red-500">*</span></label>
+      <input 
+        type="text" 
+        name="address" 
+        placeholder="請填寫完整地址" 
+        className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
+        onChange={handleChange} 
+      />
+    </div>
+
+    {/* 緊急聯絡人區塊 */}
+    <div className="mt-8 pt-6 border-t border-milk-soft/50">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-[12px] font-black text-milk-deep uppercase tracking-widest bg-milk-soft/20 px-2 py-0.5 rounded">緊急聯絡人</span>
+        <span className="text-[12px] text-sub opacity-70">(聯絡不到飼主時)</span>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="form-group">
+          <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人姓名<span className="text-red-500">*</span></label>
+          <input 
+            type="text" 
+            name="emerName" 
+            className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" 
+            onChange={handleChange} 
+          />
+        </div>
+        <div className="form-group">
+          <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">關係<span className="text-red-500">*</span></label>
+          <input 
+            type="text" 
+            name="emerRel" 
+            placeholder="如: 配偶、家人" 
+            className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" 
+            onChange={handleChange} 
+          />
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人電話<span className="text-red-500">*</span></label>
+        <input 
+          type="tel" 
+          name="emerPhone" 
+          className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" 
+          onChange={handleChange} 
+        />
+      </div>
+    </div>
+  </div>
+</div>
 
 {/* 區塊 2：毛孩基本資料與健康評估 (按鈕化設計) */}
         <div className="bg-white/60 backdrop-blur-md border border-white rounded-[32px] p-6 mb-6 shadow-sm animate-in fade-in slide-in-from-bottom-2">
@@ -1362,7 +1688,27 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
 
         <div className="grid grid-cols-2 gap-4 px-2">
           <button className="py-4 bg-white/50 text-sub rounded-2xl font-bold shadow-sm" onClick={onBack}>返回</button>
-<button className={`py-4 rounded-2xl font-bold shadow-lg ${(!formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || !sigImage) ? 'bg-gray-300 text-white' : 'bg-milk-deep text-white'}`} onClick={handleFinalSubmit}>確認送出</button>
+<button 
+  className={`py-4 rounded-2xl font-bold shadow-lg transition-all ${
+    isSubmitting 
+      ? 'bg-gray-300 text-white cursor-not-allowed' 
+      : (!formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || !sigImage)
+        ? 'bg-gray-300 text-white'
+        : 'bg-milk-deep text-white'
+  }`} 
+  onClick={handleFinalSubmit}
+  disabled={isSubmitting}
+>
+  {isSubmitting ? (
+    <span className="flex items-center justify-center gap-2">
+      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      上傳中 {uploadProgress}%
+    </span>
+  ) : '確認送出'}
+</button>
         </div>
 
 {activeModal === 'terms' && (
@@ -1575,6 +1921,14 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
     )}
   </TermsModal>
 )}
+{/* 歷史紀錄 Modal */}
+{showHistoryModal && (
+  <HistoryModal 
+    records={historyRecords} 
+    onClose={() => setShowHistoryModal(false)} 
+    onSelect={handleApplyHistory} 
+  />
+)}
 {showSig && (
   <SignatureModal
     onSave={(data) => {
@@ -1588,7 +1942,173 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
    </div>
     );
   };
-// --- 子元件 5：緬因貓詢問表單 (問卷版) ---
+// --- Success View (喵之谷風格重製) ---
+  const SuccessView = () => (
+    <div className="max-w-md mx-auto p-6 animate-fade-in flex flex-col items-center pt-10">
+      
+      {/* 成功圖示 */}
+      <div className="w-20 h-20 bg-[#b78963] rounded-full flex items-center justify-center shadow-lg mb-6 ring-4 ring-[#e6dace]">
+        <Check size={40} className="text-white" strokeWidth={3} />
+      </div>
+
+      <h2 className="text-2xl font-bold text-[#5e4b35] mb-2 tracking-wide">預約已送出！</h2>
+      <p className="text-sm text-[#8c6b4a] mb-8">感謝您選擇喵之谷，我們將盡快與您聯繫。</p>
+
+      {/* 訂單明細卡片 */}
+      <div className="w-full bg-white border-2 border-[#e6dace] rounded-2xl overflow-hidden shadow-sm relative">
+        {/* 頂部裝飾條 */}
+        <div className="h-2 bg-[#b78963] w-full"></div>
+        
+        <div className="p-6 space-y-4">
+          <div className="flex justify-between items-center border-b border-dashed border-[#e6dace] pb-4">
+             <span className="text-xs text-gray-400 font-medium">預約編號</span>
+             <span className="text-sm font-mono text-[#b78963] font-bold">#PENDING</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 text-left">
+            <div>
+              <p className="text-[10px] text-gray-400 mb-1">預約日期</p>
+              <p className="text-sm font-bold text-[#5e4b35]">{formData.date}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-400 mb-1">抵達時間</p>
+              <p className="text-sm font-bold text-[#5e4b35]">{formData.time}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-400 mb-1">飼主姓名</p>
+              <p className="text-sm font-bold text-[#5e4b35]">{formData.ownerName}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-gray-400 mb-1">貓咪資訊</p>
+              <p className="text-sm font-bold text-[#5e4b35]">{formData.catName} ({formData.catBreed})</p>
+            </div>
+          </div>
+
+          <div className="bg-[#f6efe7] rounded-lg p-3 mt-2 flex justify-between items-center">
+             <span className="text-xs text-[#8c6b4a] font-bold">預估費用</span>
+             <span className="text-lg font-black text-[#b78963]">${price}</span>
+          </div>
+        </div>
+
+        {/* 底部票根裝飾 */}
+        <div className="bg-[#f9f9f9] p-4 border-t border-[#e6dace] text-center">
+           <p className="text-[10px] text-gray-400">請留意我們的手機來電或簡訊通知</p>
+        </div>
+      </div>
+
+      <button 
+        onClick={() => window.location.reload()}
+        className="mt-8 text-[#b78963] text-sm font-bold hover:underline flex items-center gap-1"
+      >
+        <RotateCcw size={14}/>
+        返回首頁預約下一筆
+      </button>
+
+    </div>
+  );
+  // --- 子元件 5：舊客搜尋 Modal (喵之谷風格) ---
+const HistoryModal = ({ records, onClose, onSelect }) => {
+  const [selectedPet, setSelectedPet] = useState(null);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-soosi-dark/40 backdrop-blur-sm animate-in fade-in">
+      <div className="w-full max-w-md bg-white rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
+        
+        {/* Header */}
+        <div className="bg-milk-deep p-6 text-white text-center relative">
+          {selectedPet && (
+            <button onClick={() => setSelectedPet(null)} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 hover:bg-white/20 rounded-full transition-colors">
+              <i data-lucide="arrow-left" className="w-5 h-5"></i>
+            </button>
+          )}
+          <h3 className="text-xl font-black">
+            {selectedPet ? `選擇 ${selectedPet.name} 的紀錄` : "🎉 歡迎回來！"}
+          </h3>
+          <p className="text-sm opacity-80 mt-1">
+            {selectedPet ? "請問要帶入哪種服務資料？" : "請選擇要帶入的毛孩："}
+          </p>
+        </div>
+
+        {/* Content Area */}
+        <div className="p-6 space-y-3 overflow-y-auto bg-[#F9F7F2] min-h-[200px]">
+          {!selectedPet && (
+            <button onClick={() => onSelect({ ownerOnly: true, ...records[0].grooming || records[0].boarding })} className="w-full py-3 mb-2 bg-milk-deep/10 text-milk-deep border-2 border-dashed border-milk-deep/30 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-milk-deep/20 transition-all">
+              <i data-lucide="user" className="w-4 h-4"></i> 僅填入飼主資料 (不帶入毛孩)
+            </button>
+          )}
+          {!selectedPet ? (
+            // 第一層：顯示寵物列表
+            records.map((pet, index) => (
+              <button key={index} onClick={() => setSelectedPet(pet)} className="w-full bg-white p-4 rounded-2xl border-2 border-transparent shadow-sm hover:border-milk-soft hover:shadow-md transition-all text-left flex items-center gap-4 group">
+                <div className="w-12 h-12 rounded-full bg-milk-soft/10 flex items-center justify-center text-milk-deep font-black text-lg">
+                  {pet.name.charAt(0)}
+                </div>
+                <div className="flex-1">
+                  <div className="font-black text-ink text-lg">{pet.name}</div>
+                  <div className="flex gap-2 mt-1">
+                    {pet.grooming && <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 font-bold">有美容紀錄</span>}
+                    {pet.boarding && <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-bold">有住宿紀錄</span> }
+                  </div>
+                </div>
+                <i data-lucide="chevron-right" className="text-gray-300 group-hover:text-milk-deep w-5 h-5"></i>
+              </button>
+            ))
+          ) : (
+            // 第二層：顯示該寵物的 美容/住宿 選項
+            <div className="space-y-4 animate-in slide-in-from-right duration-300">
+              {/* 美容選項 */}
+              {selectedPet.grooming ? (
+                <button onClick={() => onSelect(selectedPet.grooming)} className="w-full bg-white p-5 rounded-2xl border-2 border-blue-100 hover:border-blue-400 shadow-sm hover:shadow-md transition-all text-left group relative overflow-hidden">
+                  <div className="absolute right-0 top-0 p-10 bg-blue-50 rounded-bl-full -mr-10 -mt-10 opacity-50 group-hover:scale-110 transition-transform"></div>
+                  <div className="relative z-10 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                      <i data-lucide="scissors" className="w-5 h-5"></i>
+                    </div>
+                    <div>
+                      <div className="font-black text-blue-800 text-lg">帶入「美容」資料</div>
+                      <div className="text-xs text-gray-400 font-bold mt-1">上次消費：{new Date(selectedPet.grooming.created_at).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                </button>
+              ) : (
+                <div className="p-4 text-center text-gray-400 text-xs bg-gray-100 rounded-xl border border-dashed border-gray-300">
+                  此寵物尚無美容紀錄
+                </div>
+              )}
+
+              {/* 住宿選項 */}
+              {selectedPet.boarding ? (
+                <button onClick={() => onSelect(selectedPet.boarding)} className="w-full bg-white p-5 rounded-2xl border-2 border-orange-100 hover:border-orange-400 shadow-sm hover:shadow-md transition-all text-left group relative overflow-hidden">
+                  <div className="absolute right-0 top-0 p-10 bg-orange-50 rounded-bl-full -mr-10 -mt-10 opacity-50 group-hover:scale-110 transition-transform"></div>
+                  <div className="relative z-10 flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                      <i data-lucide="home" className="w-5 h-5"></i>
+                    </div>
+                    <div>
+                      <div className="font-black text-orange-800 text-lg">帶入「住宿」資料</div>
+                      <div className="text-xs text-gray-400 font-bold mt-1">上次消費：{new Date(selectedPet.boarding.created_at).toLocaleDateString()}</div>
+                      <div className="text-[10px] text-orange-400 mt-1">包含飲食、排泄習慣等詳細資料</div>
+                    </div>
+                  </div>
+                </button>
+              ) : (
+                <div className="p-4 text-center text-gray-400 text-xs bg-gray-100 rounded-xl border border-dashed border-gray-300">
+                  此寵物尚無住宿紀錄
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 bg-white border-t border-dashed">
+          <button onClick={onClose} className="w-full py-3 rounded-xl text-gray-400 font-bold text-sm hover:bg-gray-50 transition-colors">取消搜尋</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// --- 子元件 6：緬因貓詢問表單 (問卷版) ---
 const MaineCoonForm = ({ onBack }) => {
   useEffect(() => lucide.createIcons(), []);
   const [step, setStep] = useState('select'); // ✅ 先選擇頁
@@ -2171,12 +2691,13 @@ homeEnv: '', homeEnvOther: ''
             <button className="home-btn" onClick={() => navigateTo('home')}>HOME</button>
           </div>
         </nav>
-        <main className="wrap">
-          {view === 'home' && <HomeView onNavigate={navigateTo} />}
-          {view === 'grooming' && <ContractForm title="純貓美容契約" type="grooming" onBack={() => navigateTo('home')} />}
-          {view === 'boarding' && <ContractForm title="純貓住宿契約" type="boarding" onBack={() => navigateTo('home')} />}
-          {view === 'mainecoon' && <MaineCoonForm onBack={() => navigateTo('home')} />}
-            </main>
+<main className="wrap">
+  {view === 'home' && <HomeView onNavigate={navigateTo} />}
+  {view === 'grooming' && <ContractForm title="純貓美容契約" type="grooming" onBack={() => navigateTo('home')} />}
+  {view === 'boarding' && <ContractForm title="純貓住宿契約" type="boarding" onBack={() => navigateTo('home')} />}
+  {view === 'mainecoon' && <MaineCoonForm onBack={() => navigateTo('home')} />}
+  {view === 'view-success' && <SuccessView onNavigate={navigateTo} />}
+</main>
       </div>
     );
   }
