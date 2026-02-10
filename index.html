@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ichitenfont/I.MingWebfont/index.css">
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -40,6 +40,7 @@ const compressImage = async (file, maxWidth = 1024, quality = 0.8) => {
         let width = img.width;
         let height = img.height;
 
+        // 計算縮放比例
         if (width > maxWidth) {
           height = (height * maxWidth) / width;
           width = maxWidth;
@@ -48,6 +49,12 @@ const compressImage = async (file, maxWidth = 1024, quality = 0.8) => {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
+        
+        // 設定白色背景（避免 PNG 轉 JPEG 時變透明）
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        
+        // 繪製圖片
         ctx.drawImage(img, 0, 0, width, height);
 
         canvas.toBlob(
@@ -328,9 +335,9 @@ const SignatureModal = ({ onSave, onClose }) => {
 
   // --- 子元件 4：專業版契約表單 ---
   const ContractForm = ({ title, type, onBack }) => {
-        useEffect(() => {
-      lucide.createIcons();
-    });
+useEffect(() => {
+  lucide.createIcons();
+}, []); 
 const [formData, setFormData] = useState({
       ownerName: '', phone: '', idNumber: '', email: '', address: '',
       emerName: '', emerRel: '', emerPhone: '',
@@ -588,65 +595,88 @@ const handleFinalSubmit = async () => {
   const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || !sigImage;
   if(!formData.ownerName || !sigImage) return alert("請填寫姓名並完成簽名");
   
-  setIsSubmitting(true);
-  setUploadProgress(10);
+if (!sigPad.current) return; 
+      setIsSubmitting(true);
+      
+      try {
+        const sigBlob = await new Promise(resolve => {
+          const canvas = sigPad.current.getCanvas();
+          canvas.toBlob(blob => resolve(blob), 'image/png');
+        });
 
-  try {
-    // 1. 處理簽名檔
-    setUploadProgress(20);
-    const sigBlob = await (await fetch(sigImage)).blob();
-    const sigFile = new File([sigBlob], 'signature.png', { type: 'image/png' });
-    const sigUrl = await uploadToStorage(sigFile, 'signatures');
+        // ✅ 修正點：使用你原本的 uploadToStorage，並指定資料夾
+        const sigUrl = sigBlob ? await uploadToStorage(sigBlob, 'signatures') : null;
+        const vaccineUrl = formData.vaccineFile ? await uploadToStorage(formData.vaccineFile, 'vaccines') : null;
+        const dewormUrl = formData.dewormFile ? await uploadToStorage(formData.dewormFile, 'deworms') : null;
+
+        // 4. 準備要儲存的資料 (資料庫格式)
+        const dbData = {
+          // --- 飼主資料 ---
+          owner_name: formData.ownerName,
+          phone: formData.phone,
+          id_number: formData.idNumber,
+          email: formData.email,
+          address: formData.address,
+          emergency_name: formData.emerName,
+          emergency_rel: formData.emerRel,
+          emergency_phone: formData.emerPhone,
+          
+          // --- 寵物資料 ---
+          pet_name: formData.petName,
+          breed: formData.breed,
+          weight: formData.weight,
+          age_years: formData.ageYears,
+          age_months: formData.ageMonths,
+          sex: formData.gender,
+          fix: formData.neutered,
+          chip_status: formData.chip,
+          chip_id: formData.chipNum,
+          medical_history: formData.behavior,
+          medical_status: formData.healthHistory,
+          preferred_clinic: formData.prefHospital,
     
-    // 2. 處理疫苗證明（如果有）
-    let vaccineUrl = null;
-    if (formData.vaccineProof) {
-      setUploadProgress(40);
-      const compressedVaccine = await compressImage(formData.vaccineProof);
-      vaccineUrl = await uploadToStorage(compressedVaccine, 'vaccine-proofs');
-    }
+          // --- 檔案與系統 ---
+          sig_image: sigUrl,
+          vaccine_proof: vaccineUrl,
+          deworm_proof: dewormUrl,
+          submitted_at: new Date().toISOString(),
+          raw_data: formData,
+    
+          // --- 依照類型寫入不同欄位 ---
+          ...(type === 'boarding' ? {
+            service_type: 'boarding',
+            room_type: formData.roomType,
+            diet_type: [formData.dryFreq, formData.wetHas === '有' ? '罐頭' : '', formData.snackHas === '有' ? '點心' : ''].filter(Boolean).join(','),
+            feeding_plan: `乾糧:${formData.dryAmount}, 濕食:${formData.wetAmount}`,
+            litter_type: formData.litterType,
+            special_care_note: formData.specialCareNote
+          } : {
+            service_type: 'grooming',
+            grooming_coat: formData.groomingCoat,
+            grooming_service: formData.groomingService,
+            grooming_addons: formData.groomingAddons
+          })
+        };
+    
+        // 5. 儲存到資料庫
+        const tableName = type === 'boarding' ? 'boarding_bookings' : 'grooming_bookings';
+        const { error } = await supabase
+          .from(tableName)
+          .insert([dbData]);
 
-    // 3. 處理驅蟲證明（如果有）
-    let dewormUrl = null;
-    if (formData.dewormProof) {
-      setUploadProgress(60);
-      const compressedDeworm = await compressImage(formData.dewormProof);
-      dewormUrl = await uploadToStorage(compressedDeworm, 'deworm-proofs');
-    }
+        if (error) throw error;
+        
+        alert('預約單提交成功！');
+        // (後續清空表單或跳轉的邏輯...)
+        if(onBack) onBack();
 
-    setUploadProgress(80);
-
-    // 4. 準備要儲存的資料
-    const submissionData = {
-      ...formData,
-      sigImage: sigUrl,
-      vaccineProof: vaccineUrl,
-      dewormProof: dewormUrl,
-      submittedAt: new Date().toISOString()
+      } catch (error) {
+        console.error(error);
+        alert('提交失敗：' + error.message);
+      } finally {
+        setIsSubmitting(false);
+      }
     };
-
-    // 5. 儲存到資料庫（這裡需要根據你的資料表結構調整）
-    const tableName = type === 'boarding' ? 'boarding_bookings' : 'grooming_bookings';
-    const { error } = await supabase
-      .from(tableName)
-      .insert([submissionData]);
-
-    if (error) throw error;
-
-    setUploadProgress(100);
-
-    // 6. 成功後跳轉
-    setTimeout(() => {
-      window.location.hash = 'view-success';
-    }, 500);
-
-  } catch (error) {
-    console.error('提交失敗:', error);
-    alert('提交失敗，請稍後再試或聯繫店家');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
 
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
@@ -1587,7 +1617,10 @@ const handleFinalSubmit = async () => {
                   <i data-lucide="scissors"></i>
                 </div>
                 <div>
-                  <p className="text-sm font-black text-ink">美容服務契約條款</p>
+{/* ✅ 修正點：根據 type 顯示不同標題 */}
+<p className="text-sm font-black text-ink">
+  {type === 'boarding' ? '住宿服務契約條款' : '美容服務契約條款'}
+</p>
                   <p className="text-[12px] text-sub">點擊閱讀</p>
                 </div>
               </div>
@@ -1711,145 +1744,298 @@ const handleFinalSubmit = async () => {
 </button>
         </div>
 
-{activeModal === 'terms' && (
-  <TermsModal
-    title={type === 'boarding' ? "貓寄養定型化契約" : "美容服務契約條款"}
-    onClose={() => setActiveModal(null)}
-    onAgree={() => setFormData(prev => ({ ...prev, agreeTerms: true }))}
-  >
-    {type === 'boarding' ? (
-      <div className="space-y-4 text-sm leading-relaxed font-hand" style={{ color: 'var(--ink)' }}>
+{/* --- 合約條款 Modal (最終完整美化版) --- */}
+      {activeModal === 'terms' && (
+        <TermsModal
+          title={type === 'boarding' ? "貓寄養定型化契約" : "美容服務契約條款"}
+          onClose={() => setActiveModal(null)}
+          onAgree={() => setFormData(prev => ({ ...prev, agreeTerms: true }))}
+        >
+          {type === 'boarding' ? (
+            // ==========================================
+            // 🏠 住宿條款 (Boarding Terms)
+            // ==========================================
+            <div className="space-y-6 text-sm leading-relaxed text-gray-600 font-sans">
+              
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">1</span> 契約目的與範圍
+                </h5>
+                <p>本契約所稱貓寄養業者，指在特定期間內，以營業場所提供貓寄宿、飼養之業者。乙方收取寄養費用，應開立收費憑證交付甲方。</p>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">第一條（契約目的與範圍）</h5>
-          <p>本契約所稱貓寄養業者，指在特定期間內，以營業場所提供貓寄宿、飼養之業者。</p>
-          <p>乙方收取寄養費用，應開立收費憑證交付甲方。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">2</span> 資訊揭露義務
+                </h5>
+                <p>本契約及特定寵物業寄養許可證正本公告於場所明顯處，簽署後此契約即生效。</p>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">第二條（資訊揭露義務）</h5>
-          <p>本契約及特定寵物業寄養許可證正本公告於場所明顯處，簽署後此契約即生效。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">3</span> 甲方誠實告知義務
+                </h5>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <p className="mb-2">乙方於簽約前向甲方詢問、確認貓是否合適接受寄養，甲方對於乙方之詢問應誠實告知，並主動告知乙方貓是否有疾病史、手術史等健康狀況或其他特殊須注意事項。</p>
+                  <p className="text-red-800 font-bold text-xs">
+                    ⚠️ 寄養之貓因甲方隱瞞病況發生意外或死亡，且乙方無疏失，則乙方無須負損害賠償責任且乙方得解除契約。甲方應於雙方約定時間內將寄養之貓領回，如逾時未領回或無法提前接回，則飼主須自行承擔貓之健康風險，且仍需支付寄養或逾時費用。
+                  </p>
+                </div>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">第三條（甲方誠實告知義務）</h5>
-          <p>乙方於簽約前向甲方詢問、確認貓是否合適接受寄養，甲方對於乙方之詢問應誠實告知，並主動告知乙方貓是否有疾病史、手術史等健康狀況或其他特殊須注意事項。</p>
-          <p>寄養之貓因甲方隱瞞病況發生意外或死亡，且乙方無疏失，則乙方無須負損害賠償責任且乙方得解除契約，甲方應於雙方約定時間內將寄養之貓領回，如逾時未領回或無法提前接回，則飼主須自行承擔貓之健康風險，且仍需支付寄養或逾時費用。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">4</span> 寄養期間之異常狀況處理
+                </h5>
+                <p>於寄養期間，乙方發現貓有緊急就醫必要時，需立即通知甲方或其指定之緊急聯絡人，乙方應優先將貓送往甲方指定獸醫院，如甲方指定獸醫院及乙方配合獸醫院皆為營業時間外，則就近至設有24小時急診之獸醫院（<span className="font-bold underline text-[#b78963]">夏洛克動物醫院</span>）。</p>
+                <ul className="mt-2 list-disc pl-4 bg-orange-50/50 p-2 rounded text-xs border border-orange-100">
+                  <li>甲方同意授權乙方緊急送醫處置，費用由甲方負擔。</li>
+                  <li>外出就醫需額外支付車馬費：<span className="font-bold text-red-600">$300 / 小時</span>。</li>
+                  <li>所有診療費用由 <span className="font-bold">甲方全額負擔</span>。</li>
+                </ul>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">第四條（寄養期間之異常狀況處理）</h5>
-          <p>於寄養期間，乙方發現貓有緊急就醫必要時，需立即通知甲方或其指定之緊急聯絡人，乙方應優先將貓送往甲方指定獸醫院，如甲方指定獸醫院及乙方配合獸醫院皆為營業時間外，則就近至設有24小時急診之獸醫院（夏洛克動物醫院），甲方同意外出就醫需額外支付300元/小時，並由甲方承擔所有診療費用。如突發狀況無法及時聯絡甲方，甲方同意授權乙方緊急送醫處置，費用由甲方負擔。</p>
-        </div>
+              <hr className="border-dashed border-gray-300 my-2"/>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">第五條（貓寄養契約之解除及終止契約之退費規定）</h5>
-          <p>甲乙雙方確認訂房後，需預付總房價的50%為定金，乙方即予保留房位及時段，尾款於入住時收取，提前退宿恕不予退款。</p>
-          <p>本館退費規定：</p>
-          <p>• 若於入住15天(含)前取消訂房，定金可全數退回。</p>
-          <p>• 若於入住8～14天前取消訂房，定金可退回50%。</p>
-          <p>• 若於入住前未達7天(含)取消訂房，恕不退還定金，定金可保留一年。</p>
-          <p>連續假期與農曆春節將另行公告，不適用以上收費及退款規定，將另行公告。</p>
-          <p>遇颱風、地震等不可抗力，以台中市政府公告為主，定金可保留乙次（有效期一年）。</p>
-        </div>
+              {/* 第五條：退費規定 (重點美化) */}
+              <section className="bg-orange-50/30 p-4 rounded-xl border border-orange-100">
+                <h5 className="font-black text-[#8c6b5d] mb-3 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">5</span> 貓寄養契約之解除及退費規定
+                </h5>
+                
+                <div className="mb-4 text-xs bg-white p-3 rounded-lg shadow-sm border border-orange-100/50">
+                  <p>甲乙雙方確認訂房後，需預付 <span className="text-red-600 font-bold">總房價 50%</span> 為定金，乙方即予保留房位及時段，尾款於入住時收取，提前退宿恕不予退款。</p>
+                </div>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">第六條（甲方逾時接回貓之處理方式）</h5>
-          <p>甲方應於約定之寄養期間屆滿時，準時接回寄養之貓，除經乙方同意延長留置外，不得逾期滯留。</p>
-          <p>甲方同意接回貓之時間已逾約定時間者，乙方將收取逾時費，每小時新臺幣200元。逾時未滿三十分鐘不收取逾時費，逾時三十分鐘起開始計算逾時費，其超過部分，未滿三十分鐘者，以半小時計算，收取100元；超過三十分鐘以上未滿一小時者，以一小時計算，收取200元。</p>
-          <p>如超過當日營業時間未接回貓者，則需隔日接回並支付寄養費用。</p>
-          <p>甲方逾三日未接回貓，且未為正當說明，經通知仍未處理者，乙方得依動物保護法相關規定辦理，甲方不得異議，並應負擔相關衍生費用。</p>
-        </div>
+                <p className="font-bold text-gray-800 mb-2 text-xs">📅 本館退費規定：</p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between bg-white p-3 rounded-lg border-l-4 border-green-500 shadow-sm">
+                    <span className="font-bold text-gray-700">入住 15 天前(含)</span>
+                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">定金全數退回</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-white p-3 rounded-lg border-l-4 border-yellow-500 shadow-sm">
+                    <span className="font-bold text-gray-700">入住 8～14 天前</span>
+                    <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold">定金退回 50%</span>
+                  </div>
+                  <div className="flex items-center justify-between bg-white p-3 rounded-lg border-l-4 border-red-500 shadow-sm">
+                    <span className="font-bold text-gray-700">未達 7 天(含)</span>
+                    <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">恕不退還 (可保留一年)</span>
+                  </div>
+                </div>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">第七條（個人資料保護）</h5>
-          <p>甲方同意個資用於服務聯繫，乙方予保密，非經甲方同意，乙方不得對外揭露（除政府單位要求）。甲方同意無償授權貓影像用於官方宣傳，若不同意請提前告知。</p>
-        </div>
+                <div className="mt-3 text-[11px] text-gray-500 bg-white p-2 rounded border border-gray-100">
+                  <p>※ 連續假期與農曆春節將另行公告，不適用以上規定。</p>
+                  <p>※ 遇颱風、地震等不可抗力（以台中市政府公告為主），定金可保留乙次（有效期一年）。</p>
+                </div>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">第八條（申訴處理及管轄法院）</h5>
-          <p>甲方對乙方提供之服務有不滿意時，乙方將有專人接受申訴、協商。因本契約涉訟者，甲乙雙方同意以台中地方法院為第一審管轄法院。</p>
-        </div>
+              {/* 第六條：逾時規定 (重點美化) */}
+              <section className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <h5 className="font-black text-[#8c6b5d] mb-3 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">6</span> 甲方逾時接回貓之處理方式
+                </h5>
+                
+                <p className="mb-2 text-xs">甲方應準時接回，除經乙方同意延長留置外，不得逾期滯留。逾時費標準 <span className="font-bold text-gray-800">$200/小時</span>。</p>
 
-        <div className="pb-2">
-          <h5 className="font-black text-milk-deep mb-1">第九條（其他約定事項）</h5>
-          <p>乙方因安全考量，未接待：未完成三劑疫苗之幼貓、接種疫苗一周內、有傳染風險（如打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血…等狀況）及心臟病、癲癇、腎臟泌尿系統疾病、嚴重呼吸道疾病之貓咪，有傳染風險需額外收取清潔費用3000元，如經店家判斷太嚴重須由飼主馬上接回並終止合約（也需付清潔費用，費用由店家規定不得異議！）</p>
-        </div>
+                <table className="w-full text-left text-xs bg-white rounded-lg overflow-hidden border border-gray-200 mb-3 shadow-sm">
+                  <thead className="bg-gray-100 text-gray-600">
+                    <tr>
+                      <th className="p-2 pl-3 border-b">逾時時間</th>
+                      <th className="p-2 border-b">收費計算</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    <tr>
+                      <td className="p-2 pl-3">未滿 30 分鐘</td>
+                      <td className="p-2 text-green-600 font-bold">不收取逾時費</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 pl-3">30 分鐘 ～ 1 小時</td>
+                      <td className="p-2 font-bold text-gray-800">$100 (以半小時計)</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 pl-3">超過 1 小時</td>
+                      <td className="p-2 font-bold text-red-600">$200 (以一小時計)</td>
+                    </tr>
+                  </tbody>
+                </table>
 
-      </div>
-    ) : (
-      <div className="space-y-4 text-sm leading-relaxed font-hand" style={{ color: 'var(--ink)' }}>
+                <div className="bg-red-50 border border-red-100 p-2 rounded text-[11px] text-red-800 space-y-1">
+                  <p>• 超過當日營業時間未接回：需隔日接回並支付寄養費用。</p>
+                  <p>• 逾三日未接回且失聯：依動保法規定辦理，甲方應負擔衍生費用。</p>
+                </div>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">一、契約目的與服務範圍</h5>
-          <p>犬、貓美容服務係指清洗、清潔、吹乾梳毛、毛髮修剪及造型設計等行為，<span className="term-warn">不涉及任何動物醫療行為</span>。</p>
-        </div>
+              <hr className="border-dashed border-gray-300 my-2"/>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">二、資訊揭露與契約效力</h5>
-          <p>本契約內容公開於場所明顯處，<span className="term-warn">簽署後此契約即生效</span>。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">7</span> 個人資料保護
+                </h5>
+                <p>甲方同意個資用於服務聯繫，乙方予保密，非經甲方同意，乙方不得對外揭露（除政府單位要求）。甲方同意無償授權貓影像用於官方宣傳，若不同意請提前告知。</p>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">三、寵物、甲方及乙方相關資料</h5>
-          <p>本契約記載犬、貓、甲方（飼主）及乙方（業者）之基本資料，詳如附件。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">8</span> 申訴處理及管轄法院
+                </h5>
+                <p>甲方對乙方提供之服務有不滿意時，乙方將有專人接受申訴、協商。因本契約涉訟者，甲乙雙方同意以台中地方法院為第一審管轄法院。</p>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">四、服務內容說明及確認</h5>
-          <p>甲方已於美容服務實施前，充分了解並同意本次美容服務項目、內容及費用。實際服務內容與費用，<span className="term-warn">得依現場犬、貓狀況調整</span>。乙方收取犬、貓美容服務費用，<span className="term-warn">應開立憑證予甲方</span>。</p>
-        </div>
+              {/* 第九條：拒收警示 (包含腎臟泌尿疾病) */}
+              <section className="border-2 border-red-100 bg-red-50/50 p-4 rounded-xl mt-4">
+                <h5 className="font-black text-red-800 mb-2 flex items-center gap-2">
+                  <span className="bg-red-800 text-white text-[10px] px-1.5 py-0.5 rounded">9</span> 其他約定事項 (拒收與傳染病規範)
+                </h5>
+                <p className="text-red-900 font-bold mb-2 text-xs">⛔ 乙方因安全考量，以下情況恕不接待：</p>
+                <ul className="list-disc pl-4 space-y-1 text-red-800 mb-3 text-xs">
+                  <li>未完成三劑疫苗之幼貓 / 接種疫苗一周內</li>
+                  <li>有傳染風險（打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血等）</li>
+                  <li>嚴重疾病（心臟病、癲癇、<span className="font-black underline">腎臟泌尿系統疾病</span>、嚴重呼吸道疾病）</li>
+                </ul>
+                <div className="bg-white p-3 rounded border border-red-200 text-red-700 font-bold text-center text-sm shadow-sm">
+                  有傳染風險需額外收取清潔費用 <span className="text-lg text-red-600">$3000</span><br/>
+                  <span className="text-xs font-normal text-gray-600">如經店家判斷太嚴重須由飼主馬上接回並終止合約（也需付清潔費用，費用由店家規定不得異議！）</span>
+                </div>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">五、詢問義務與誠實告知</h5>
-          <p>乙方於美容前已向甲方詢問犬、貓個性、是否具攻擊性、疾病史、過敏史、手術史或其他特殊注意事項，<span className="term-warn">甲方應誠實告知</span>。若甲方未如實告知，致美容期間發生異常或風險者（潛在疾病急性發作、死亡等），<span className="term-warn">該結果非可歸責於乙方</span>。</p>
-        </div>
+            </div>
+          ) : (
+            // ==========================================
+            // ✂️ 美容條款 (Grooming Terms)
+            // ==========================================
+            <div className="space-y-6 text-sm leading-relaxed text-gray-600 font-sans">
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">六、攻擊行為與安全中止</h5>
-          <p>美容過程中，若犬、貓出現抓、咬、緊張、強烈掙扎、持續抗拒等攻擊行為，致難以繼續接受美容服務或危及犬、貓自身或美容師安全者，屬不可歸責於雙方之事由，<span className="term-warn">乙方得立即中止美容服務</span>，未執行之項目不予收費，不保證完成所有項目。若美容服務因前述原因未完成，凡已執行洗、吹、剃、修剪等項目，仍屬已提供之服務，<span className="term-warn">乙方得就已發生之服務內容計算費用</span>。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">1</span> 契約目的與服務範圍
+                </h5>
+                <p>犬、貓美容服務係指清洗、清潔、吹乾梳毛、毛髮修剪及造型設計等行為，<span className="text-red-600 font-bold bg-red-50 px-1 rounded">不涉及任何動物醫療行為</span>。</p>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">七、美容期間異常或死亡之處理</h5>
-          <p>美容期間如發現犬、貓有喘氣、流口水、失禁、精神不穩等應激或異常狀況，乙方應即時處理（終止美容、提供安全環境）並通知甲方，必要時送至乙方配合醫院，如非配合獸醫院之營業時間，將就近至設有24小時急診之獸醫院（夏洛克動物醫院）。如突發狀況無法及時聯絡甲方，甲方同意授權乙方緊急送醫處置，<span className="term-warn">費用由甲方負擔</span>。如該狀況非可歸責於乙方之人為疏失所致（如：摔傷、拉傷等），<span className="term-warn">乙方不負損害賠償責任</span>。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">2</span> 資訊揭露與契約效力
+                </h5>
+                <p>本契約內容公開於場所明顯處，<span className="font-bold text-gray-800">簽署後此契約即生效</span>。</p>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">八、毛髮打結與處理方式調整</h5>
-          <p>若現場發現犬、貓毛髮打結嚴重、貼皮結或需額外處理情形，乙方需先告知甲方後予調整處理方式（<span className="term-warn">包含剃毛</span>）及相關費用，如乙方聯繫不上甲方或未得到甲方同意，<span className="term-warn">則不予處理及額外收費</span>。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">3</span> 寵物、甲方及乙方相關資料
+                </h5>
+                <p>本契約記載犬、貓、甲方（飼主）及乙方（業者）之基本資料，詳如附件。</p>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">九、甲方逾時接回犬、貓之處理方式</h5>
-          <p>乙方完成犬、貓美容服務後，甲方應依通知後三十分鐘內接回犬、貓。甲方已同意收取逾時費，<span className="term-warn">每小時新臺幣200元</span>。逾時未滿三十分鐘不收取逾時費，逾時三十分鐘起開始計算逾時費，其超過部分，未滿三十分鐘者，以半小時計算，收取100元； 超過三十分鐘以上未滿一小時者，以一小時計算，收取200元。甲方逾三日未接回犬、貓者，<span className="term-warn">乙方將通報動物保護主管機關</span>，且甲方仍需支付期間照顧費用。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">4</span> 服務內容說明及確認
+                </h5>
+                <p>甲方已於美容服務實施前，充分了解並同意本次美容服務項目、內容及費用。實際服務內容與費用，<span className="text-[#b78963] font-bold">得依現場犬、貓狀況調整</span>。乙方收取犬、貓美容服務費用，應開立憑證予甲方。</p>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">十、異常狀況及責任歸屬</h5>
-          <p>犬、貓於美容服務期間發生異常或死亡情形，若屬可歸責於乙方之事由，乙方依法負相關責任；<span className="term-warn">非可歸責於乙方者，乙方不負賠償責任</span>。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">5</span> 詢問義務與誠實告知
+                </h5>
+                <p>乙方於美容前已向甲方詢問犬、貓個性、是否具攻擊性、疾病史、過敏史、手術史或其他特殊注意事項，<span className="text-red-600 font-bold">甲方應誠實告知</span>。若甲方未如實告知，致美容期間發生異常或風險者（潛在疾病急性發作、死亡等），<span className="font-bold text-gray-800">該結果非可歸責於乙方</span>。</p>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">十一、個人資料保護</h5>
-          <p>甲方同意個資用於服務聯繫，乙方予保密，<span className="term-warn">非經甲方同意，乙方不得對外揭露</span>（除政府單位要求）。甲方同意無償授權犬、貓影像用於官方宣傳，若不同意請提前告知。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">6</span> 攻擊行為與安全中止
+                </h5>
+                <p>美容過程中，若犬、貓出現抓、咬、緊張、強烈掙扎、持續抗拒等攻擊行為，致難以繼續接受美容服務或危及犬、貓自身或美容師安全者，屬不可歸責於雙方之事由，<span className="text-red-600 font-bold bg-red-50 px-1 rounded">乙方得立即中止美容服務</span>，未執行之項目不予收費，不保證完成所有項目。若美容服務因前述原因未完成，凡已執行洗、吹、剃、修剪等項目，仍屬已提供之服務，乙方得就已發生之服務內容計算費用。</p>
+              </section>
 
-        <div className="pb-4 border-b border-milk-soft">
-          <h5 className="font-black text-milk-deep mb-1">十二、申訴處理及管轄法院</h5>
-          <p>甲方對乙方提供之犬、貓美容服務有不滿意時，乙方將有專人接受申訴、協商。因本契約涉訟者，甲乙雙方同意以<span className="term-warn">台中地方法院</span>為第一審管轄法院。</p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">7</span> 犬、貓於美容服務期間有異常狀況或死亡情形之處理
+                </h5>
+                <p>美容期間如發現犬、貓有喘氣、流口水、失禁、精神不穩等應激或異常狀況，乙方應即時處理（終止美容、提供安全環境）並通知甲方，必要時送至乙方配合醫院，如非配合獸醫院之營業時間，將就近至設有24小時急診之獸醫院（<span className="font-bold underline text-[#b78963]">夏洛克動物醫院</span>）。</p>
+                <p className="mt-1 text-xs bg-gray-50 p-2 rounded">
+                  如突發狀況無法及時聯絡甲方，甲方同意授權乙方緊急送醫處置，<span className="font-bold text-red-600">費用由甲方負擔</span>。如該狀況非可歸責於乙方之人為疏失所致（如：摔傷、拉傷等），乙方不負損害賠償責任。
+                </p>
+              </section>
 
-        <div className="pb-2">
-          <h5 className="font-black text-milk-deep mb-1">十三、其他約定事項</h5>
-          <p>乙方因安全考量，未接待：未完成三劑疫苗之幼貓、接種疫苗一周內、有傳染風險（如打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血…等狀況）及心臟病、癲癇、嚴重呼吸道疾病之貓咪，<span className="term-warn">有傳染風險需額外收取清潔費用3000元，如經店家判斷太嚴重須由飼主馬上接回並終止合約（也需付清潔費用，費用由店家規定不得異議！）</span></p>
-        </div>
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">8</span> 毛髮打結與處理方式調整
+                </h5>
+                <p>若現場發現犬、貓毛髮打結嚴重、貼皮結或需額外處理情形，乙方需先告知甲方後予調整處理方式（<span className="text-red-600 font-bold">包含剃毛</span>）及相關費用，如乙方聯繫不上甲方或未得到甲方同意，則不予處理（如：拆結、剃毛等）及額外收費。</p>
+              </section>
 
-      </div>
-    )}
-  </TermsModal>
-)}
+              {/* 第九條：逾時規定 (重點美化 - 照文字邏輯走) */}
+              <section className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <h5 className="font-black text-[#8c6b5d] mb-2 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">9</span> 甲方逾時接回犬、貓之處理方式
+                </h5>
+                <p className="mb-2 text-xs">乙方完成美容服務後，甲方應依通知後 <span className="font-bold">三十分鐘內</span> 接回犬、貓。甲方已同意收取逾時費，每小時新臺幣 <span className="font-bold">$200</span> 元。</p>
+                
+                <table className="w-full text-left text-xs bg-white rounded-lg overflow-hidden border border-gray-200 mb-2 shadow-sm">
+                   <tbody className="divide-y divide-gray-100">
+                    <tr>
+                      <td className="p-2 pl-3">逾時未滿 30 分鐘</td>
+                      <td className="p-2 text-green-600 font-bold">不收取逾時費</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 pl-3">逾時 30 分鐘 (未滿1小時)</td>
+                      <td className="p-2 font-bold text-gray-800">$100 (以半小時計)</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 pl-3">超過 30 分鐘以上 (未滿1小時者)</td>
+                      <td className="p-2 font-bold text-gray-800">$200 (以一小時計)</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="mt-2 text-xs text-red-600 font-bold bg-white p-2 rounded border border-red-100">
+                  ⚠️ 甲方逾三日未接回犬、貓者，乙方將通知動物保護主管機關依動物保護法相關規定處理，且甲方仍需支付期間照顧費用。
+                </p>
+              </section>
 
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">10</span> 異常狀況及責任歸屬
+                </h5>
+                <p>犬、貓於美容服務期間發生異常或死亡情形，若屬可歸責於乙方之事由，乙方依法負相關責任；<span className="font-bold text-gray-800">非可歸責於乙方者，乙方不負賠償責任</span>。</p>
+              </section>
+
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">11</span> 個人資料保護
+                </h5>
+                <p>甲方同意個資用於服務聯繫，乙方予保密，非經甲方同意，乙方不得對外揭露（除政府單位要求）。甲方同意無償授權犬、貓影像用於官方宣傳，若不同意請提前告知。</p>
+              </section>
+
+              <section>
+                <h5 className="font-black text-[#8c6b5d] mb-1 flex items-center gap-2">
+                  <span className="bg-[#8c6b5d] text-white text-[10px] px-1.5 py-0.5 rounded">12</span> 申訴處理及管轄法院
+                </h5>
+                <p>甲方對乙方提供之犬、貓美容服務有不滿意時，乙方將有專人接受申訴、協商。因本契約涉訟者，甲乙雙方同意以<span className="font-bold underline">台中地方法院</span>為第一審管轄法院。</p>
+              </section>
+
+              {/* 第十三條：嚴重傳染病警示區 (美容版) */}
+              <section className="border-2 border-red-100 bg-red-50/50 p-4 rounded-xl mt-4">
+                <h5 className="font-black text-red-800 mb-2 flex items-center gap-2">
+                  <span className="bg-red-800 text-white text-[10px] px-1.5 py-0.5 rounded">13</span> 其他約定事項 (拒收與傳染病規範)
+                </h5>
+                <p className="text-red-900 font-bold mb-2 text-xs">⛔ 乙方因安全考量，以下情況恕不接待：</p>
+                <ul className="list-disc pl-4 space-y-1 text-red-800 mb-3 text-xs">
+                  <li>未完成三劑疫苗之幼貓 / 接種疫苗一周內</li>
+                  <li>有傳染風險（打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血等）</li>
+                  <li>嚴重疾病（心臟病、癲癇、嚴重呼吸道疾病）</li>
+                </ul>
+                <div className="bg-white p-3 rounded border border-red-200 text-red-700 font-bold text-center text-sm shadow-sm">
+                  有傳染風險需額外收取清潔費用 <span className="text-lg text-red-600">$3000</span><br/>
+                  <span className="text-xs font-normal text-gray-600">如經店家判斷太嚴重須由飼主馬上接回並終止合約（也需付清潔費用，費用由店家規定不得異議！）</span>
+                </div>
+              </section>
+
+            </div>
+          )}
+        </TermsModal>
+      )}
+      
 {activeModal === 'highrisk' && (
   <TermsModal
     title={type === 'boarding' ? "高風險寵物寄養同意聲明" : "高風險寵物美容同意聲明"}
