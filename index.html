@@ -1,11 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>喵之谷 Meow Valley</title>
 <link rel="icon" href="logo.jpg" type="image/jpeg">
-<link rel="apple-touch-icon" href="logo.jpg">
+<link rel="apple-touch-icon" sizes="180x180" href="logo.jpg">
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +15,12 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
+<meta name="theme-color" content="#f6efe7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="喵之谷">
+<meta name="format-detection" content="telephone=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
 <script type="text/babel">
   const { useState, useEffect, useRef } = React;
 // ✅ Supabase 初始化
@@ -278,10 +282,28 @@ const [formData, setFormData] = useState({
       emerName: '', emerRel: '', emerPhone: '',
 petName: '', breed: '', weight: '', ageYears: '', ageMonths: '', gender: '', neutered: '',
       chip: '', chipNum: '', behavior: [], healthHistory: '', prefHospital: '',
+      groomingCoat: '', groomingService: '', groomingAddons: [],
       agreeTerms: false, agreeHighRisk: false,
-      lineConfirmed: false 
+      lineConfirmed: false ,serviceType: '',
+roomType: '',
+vaccineProof: null,
+dewormProof: null,
+dryFreq: '', dryAmount: '',
+wetHas: '', wetFreq: '', wetAmount: '',
+snackHas: '', snackType: '',
+supplementHas: '', supplementNote: '',
+litterType: '',
+churuConsent: '',
+homecareFreqs: [],
+homecareFreqOther: '',
+homecareTime1: '',
+homecareTime2: '',
+homecareTime3: '',
+specialCareHas: '',
+specialCareNote: ''
     });
-
+const [vaccinePreview, setVaccinePreview] = useState(null);
+const [dewormPreview, setDewormPreview] = useState(null);
     const [showSig, setShowSig] = useState(false);
 const [sigImage, setSigImage] = useState(null);
 const [sigTime, setSigTime] = useState(null);
@@ -291,7 +313,49 @@ const [sigTime, setSigTime] = useState(null);
       const { name, value, type, checked } = e.target;
       setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
     };
+const toggleAddon = (val) => {
+  const current = Array.isArray(formData.groomingAddons) ? formData.groomingAddons : [];
+  const next = current.includes(val)
+    ? current.filter(v => v !== val)
+    : [...current, val];
+  setFormData({ ...formData, groomingAddons: next });
+};
+const toggleHomecareFreq = (val) => {
+  const current = Array.isArray(formData.homecareFreqs) ? formData.homecareFreqs : [];
+  const next = current.includes(val)
+    ? current.filter(v => v !== val)
+    : [...current, val];
+  setFormData({ ...formData, homecareFreqs: next });
+};
+// ✅ 美容價目對照表
+const groomingPriceMap = {
+  '基礎洗澡': {
+    '短毛貓': 700,
+    '中短密毛貓': 900,
+    '長毛貓': 1000,
+    '密長毛貓': 1200
+  },
+  '精緻洗護 (含全身去油)': {
+    '短毛貓': 1300,
+    '中短密毛貓': 1600,
+    '長毛貓': 1900,
+    '密長毛貓': 2100
+  },
+  '剃毛 + 基礎洗澡': {
+    '短毛貓': 1600,
+    '中短密毛貓': 1600,
+    '長毛貓': 1800,
+    '密長毛貓': 1800
+  }
+};
 
+const groomingServiceTabs = [
+  { id: '基礎洗澡', title: '洗澡', desc: '基礎洗澡' },
+  { id: '精緻洗護 (含全身去油)', title: '洗護', desc: '含全身去油' },
+  { id: '剃毛 + 基礎洗澡', title: '剃毛', desc: '剃毛+基礎洗澡' }
+];
+
+const groomingCoats = ['短毛貓','中短密毛貓','長毛貓','密長毛貓'];
     // 高風險判斷
 const isHighRisk = (() => {
   const years = parseFloat(formData.ageYears);
@@ -409,30 +473,30 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
             {/* 姓名與電話並排 */}
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group">
-                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">姓名 / Name</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">姓名 / Name<span className="text-red-500">*</span></label>
                 <input type="text" name="ownerName" placeholder="填寫完整姓名" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電話 / Mobile</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電話 / Mobile<span className="text-red-500">*</span></label>
                 <input type="tel" name="phone" placeholder="09xx-xxxxxx" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
               </div>
             </div>
 
             {/* 身分證字號 */}
             <div className="form-group">
-              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">身分證字號 / ID Number</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">身分證字號 / ID Number<span className="text-red-500">*</span></label>
               <input type="text" name="idNumber" placeholder="請填寫身分證字號" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
             </div>
 
             {/* 電子郵件 */}
             <div className="form-group">
-              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電子郵件 / E-mail</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電子郵件 / E-mail<span className="text-red-500">*</span></label>
               <input type="email" name="email" placeholder="寄送契約副本用" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
             </div>
 
             {/* 通訊地址 */}
             <div className="form-group">
-              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">通訊地址 / Address</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">通訊地址 / Address<span className="text-red-500">*</span></label>
               <input type="text" name="address" placeholder="請填寫完整地址" className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
             </div>
 
@@ -445,16 +509,16 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
               
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="form-group">
-                  <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人姓名</label>
+                  <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人姓名<span className="text-red-500">*</span></label>
                   <input type="text" name="emerName" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
                 </div>
                 <div className="form-group">
-                  <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">關係</label>
+                  <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">關係<span className="text-red-500">*</span></label>
                   <input type="text" name="emerRel" placeholder="如: 配偶、家人" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
                 </div>
               </div>
               <div className="form-group">
-                <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人電話</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人電話<span className="text-red-500">*</span></label>
                 <input type="tel" name="emerPhone" className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" onChange={handleChange} />
               </div>
             </div>
@@ -467,26 +531,26 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
             <div className="bg-milk-soft/30 p-1.5 rounded-lg">
               <i data-lucide="cat" className="w-4 h-4"></i>
             </div>
-            <span className="text-xs font-black uppercase tracking-[0.2em]">毛孩詳細資料與評估</span>
+            <span className="text-xs font-black uppercase tracking-[0.2em]">毛孩詳細資料<span className="text-red-500">*</span></span>
           </div>
 
           <div className="space-y-7">
             {/* 名字、品種、體重、年齡 */}
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group">
-                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">毛孩姓名 / Name</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">毛孩名字 / Name<span className="text-red-500">*</span></label>
                 <input type="text" name="petName"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">品種 / Breed</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">品種 / Breed<span className="text-red-500">*</span></label>
                 <input type="text" name="breed"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
               </div>
               <div className="form-group">
-                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">體重 / Weight (kg)</label>
+                <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">體重 / Weight (kg)<span className="text-red-500">*</span></label>
                 <input type="number" name="weight"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
               </div>
 <div className="form-group">
-  <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">年齡 / Age</label>
+  <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">年齡 / Age<span className="text-red-500">*</span></label>
   <div className="grid grid-cols-2 gap-2">
     <input type="number" name="ageYears" placeholder="歲" className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
     <input type="number" name="ageMonths" placeholder="月" className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
@@ -496,7 +560,7 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
 
 {/* 性別 (按鈕設計) */}
             <div className="form-group">
-              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">性別 / Gender</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">性別 / Gender<span className="text-red-500">*</span></label>
               <div className="grid grid-cols-2 gap-2">
                 {['公', '母'].map(val => (
                   <button key={val} type="button" onClick={() => setFormData({...formData, gender: val})} className={`btn-choice ${formData.gender === val ? 'active' : ''}`}>{val === '公' ? '♂ 公' : '♀ 母'}</button>
@@ -506,7 +570,7 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
 
 {/* 結紮 (按鈕設計) */}
             <div className="form-group">
-              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">結紮 / Neutered</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">結紮 / Neutered<span className="text-red-500">*</span></label>
               <div className="grid grid-cols-2 gap-2">
                 {['是', '否'].map(val => (
                   <button key={val} type="button" onClick={() => setFormData({...formData, neutered: val})} className={`btn-choice ${formData.neutered === val ? 'active' : ''}`}>{val}</button>
@@ -516,7 +580,7 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
 
 {/* 晶片資訊 (按鈕設計) */}
             <div className="form-group">
-              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">晶片資訊 / Microchip</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">晶片資訊 / Microchip<span className="text-red-500">*</span></label>
               <div className="grid grid-cols-3 gap-2 mb-2">
                 {[
                   {k:'有', l:'有晶片'}, 
@@ -533,7 +597,7 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
 
 {/* 性情與攻擊性評估 (按鈕設計) */}
             <div className="form-group">
-              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">性情評估 / Behavior (可複選)</label>
+              <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">性情評估 / Behavior (可複選)<span className="text-red-500">*</span></label>
               <div className="flex flex-wrap gap-2">
                 {['親近人', '容易緊張', '有攻擊性', '會咬人', '不會咬人', '其他'].map(val => (
                   <button key={val} type="button" onClick={() => {
@@ -550,7 +614,7 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
 
 {/* 過往病史 (按鈕設計) */}
             <div className="form-group">
-<label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">過往病史 / Past Medical History <span className="text-orange-600 font-black ml-1">請務必如實告知!</span></label>
+<label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">過往病史 / Past Medical History <span className="text-orange-600 font-black ml-1">請務必如實告知!</span><span className="text-red-500">*</span></label>
               <div className="grid grid-cols-2 gap-2 mb-3">
                 {['有', '無'].map(val => (
                   <button key={val} type="button" onClick={() => setFormData({...formData, healthHistory: val})} className={`btn-choice ${formData.healthHistory === val ? 'active' : ''}`}>{val}</button>
@@ -577,7 +641,591 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
             </div>
           </div>
         </div>
+        {type === 'boarding' && (
+  <div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm">
+    <div className="flex items-center gap-2 mb-6 text-milk-deep">
+      <div className="bg-milk-soft/30 p-1.5 rounded-lg">
+        <i data-lucide="home"></i>
+      </div>
+      <span className="text-xs font-black uppercase tracking-[0.2em]">服務類型選擇<span className="text-red-500">*</span></span>
+    </div>
 
+    <div className="grid grid-cols-2 gap-3">
+      <button
+        type="button"
+        onClick={() => setFormData({ ...formData, serviceType: 'boarding' })}
+        className={`btn-choice ${formData.serviceType === 'boarding' ? 'active' : ''}`}
+      >
+        🏠 住宿
+      </button>
+      <button
+        type="button"
+        onClick={() => setFormData({ ...formData, serviceType: 'homecare' })}
+        className={`btn-choice ${formData.serviceType === 'homecare' ? 'active' : ''}`}
+      >
+        🚪 到府照顧
+      </button>
+    </div>
+  </div>
+)}
+{/* ✅ 住宿內容 */}
+{type === 'boarding' && formData.serviceType === 'boarding' && (
+  <div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm space-y-6">
+    <div className="flex items-center gap-2 text-milk-deep">
+      <div className="bg-milk-soft/30 p-1.5 rounded-lg">
+        <i data-lucide="home"></i>
+      </div>
+      <span className="text-xs font-black uppercase tracking-[0.2em]">住宿方案</span>
+    </div>
+
+    {/* 房型 */}
+{/* 房型（美化卡片版） */}
+<div>
+  <label className="text-[12px] font-bold text-sub mb-3 block uppercase tracking-wider">
+    房型與定價（過年價格依公告為主）<span className="text-red-500">*</span>
+  </label>
+
+  <div className="room-grid">
+    {[
+      { id: '套房', price: 800 },
+      { id: '1+1房', price: 1200 },
+      { id: '別墅', price: 1400 }
+    ].map(item => (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => setFormData({ ...formData, roomType: item.id })}
+        className={`room-card ${formData.roomType === item.id ? 'active' : ''}`}
+      >
+        <div className="room-title">{item.id}</div>
+        <div className="room-price">${item.price}</div>
+      </button>
+    ))}
+  </div>
+</div>
+
+{/* 上傳證明（疫苗 + 驅蟲） */}
+<div>
+  <label className="text-[12px] font-bold text-sub mb-3 block uppercase tracking-wider">
+    上傳證明（請上傳：1.疫苗注射證明 2.體內外驅蟲證明）<span className="text-red-500">*</span>
+  </label>
+
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    
+    {/* 1. 疫苗注射證明 */}
+    <label className="upload-card">
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          setFormData({ ...formData, vaccineProof: file });
+          setVaccinePreview(file ? URL.createObjectURL(file) : null);
+        }}
+      />
+      <div className="upload-title">① 疫苗注射證明</div>
+      {vaccinePreview ? (
+<img src={vaccinePreview} className="upload-preview" />
+      ) : (
+        <div className="upload-placeholder">點擊拍照 / 上傳圖片</div>
+      )}
+      <div className="upload-tip">{vaccinePreview ? "重新上傳" : "未上傳"}</div>
+    </label>
+
+    {/* 2. 體內外驅蟲證明 */}
+    <label className="upload-card">
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          setFormData({ ...formData, dewormProof: file });
+          setDewormPreview(file ? URL.createObjectURL(file) : null);
+        }}
+      />
+      <div className="upload-title">② 體內外驅蟲證明</div>
+      {dewormPreview ? (
+<img src={dewormPreview} className="upload-preview" />
+      ) : (
+        <div className="upload-placeholder">點擊拍照 / 上傳圖片</div>
+      )}
+      <div className="upload-tip">{dewormPreview ? "重新上傳" : "未上傳"}</div>
+    </label>
+
+  </div>
+</div>
+
+{/* 住宿卡優惠 */}
+<div className="mv-perk-card">
+  <div className="mv-perk-head">
+    <span className="mv-perk-badge">住宿卡優惠</span>
+    <span className="mv-perk-sub">住 8 晚送 2 晚</span>
+  </div>
+
+  <ul className="mv-perk-list">
+    <li>🐾 住宿8晚贈2晚（加貓 +200/隻）需一次結清</li>
+    <li>🐾 優惠期間：自購買日起一年內</li>
+    <li>🐾 逾期可依每日住宿費用面額折抵（例：原價800元/晚 → 折後640元/晚，逾期補足160元即可入住）</li>
+    <li>🐾 除了過年期間皆可使用，連假建議提早預約</li>
+    <li>🐾 本卷無記名，遺失或損毀恕不補發</li>
+    <li>🐾 本卷僅提供住宿使用，不得折抵商品</li>
+    <li>🐾 喵之谷保有修改活動之權利</li>
+  </ul>
+</div>
+
+    {/* 住宿調查 */}
+    <div>
+<label className="text-[12px] font-bold text-sub mb-2 block uppercase tracking-wider">
+  飲食習慣（需自行攜帶，務必帶乾糧喔）<span className="text-red-500">*</span>
+</label>
+      <div className="space-y-4">
+        {/* 乾糧 */}
+        <div>
+          <p className="text-[12px] font-bold text-sub mb-1">乾糧頻率<span className="text-red-500">*</span></p>
+          <div className="grid grid-cols-2 gap-2">
+            {['一天一次','一天兩次','一天三次','吃到飽'].map(val=>(
+              <button key={val} type="button"
+                onClick={()=>setFormData({...formData,dryFreq:val})}
+                className={`btn-choice ${formData.dryFreq===val?'active':''}`}>
+                {val}
+              </button>
+            ))}
+          </div>
+          <input type="text" placeholder="一次餵食量" className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+            onChange={e=>setFormData({...formData,dryAmount:e.target.value})}/>
+        </div>
+
+        {/* 罐頭 */}
+        <div>
+          <p className="text-[12px] font-bold text-sub mb-1">罐頭<span className="text-red-500">*</span></p>
+          <div className="grid grid-cols-2 gap-2">
+            {['有','無'].map(val=>(
+              <button key={val} type="button"
+                onClick={()=>setFormData({...formData,wetHas:val})}
+                className={`btn-choice ${formData.wetHas===val?'active':''}`}>
+                {val}
+              </button>
+            ))}
+          </div>
+          {formData.wetHas === '有' && (
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <input placeholder="頻率" className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+                onChange={e=>setFormData({...formData,wetFreq:e.target.value})}/>
+              <input placeholder="一次量" className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+                onChange={e=>setFormData({...formData,wetAmount:e.target.value})}/>
+            </div>
+          )}
+        </div>
+
+        {/* 點心 */}
+        <div>
+          <p className="text-[12px] font-bold text-sub mb-1">點心<span className="text-red-500">*</span></p>
+          <div className="grid grid-cols-2 gap-2">
+            {['有','無'].map(val=>(
+              <button key={val} type="button"
+                onClick={()=>setFormData({...formData,snackHas:val})}
+                className={`btn-choice ${formData.snackHas===val?'active':''}`}>
+                {val}
+              </button>
+            ))}
+          </div>
+          {formData.snackHas === '有' && (
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {['肉泥','凍乾','其他'].map(val=>(
+                <button key={val} type="button"
+                  onClick={()=>setFormData({...formData,snackType:val})}
+                  className={`btn-choice ${formData.snackType===val?'active':''}`}>
+                  {val}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 保健品 */}
+        <div>
+          <p className="text-[12px] font-bold text-sub mb-1">保健品<span className="text-red-500">*</span></p>
+          <div className="grid grid-cols-2 gap-2">
+            {['有','無'].map(val=>(
+              <button key={val} type="button"
+                onClick={()=>setFormData({...formData,supplementHas:val})}
+                className={`btn-choice ${formData.supplementHas===val?'active':''}`}>
+                {val}
+              </button>
+            ))}
+          </div>
+          {formData.supplementHas === '有' && (
+            <input placeholder="品項 / 頻率 / 量" className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+              onChange={e=>setFormData({...formData,supplementNote:e.target.value})}/>
+          )}
+        </div>
+
+        {/* 貓砂 */}
+        <div>
+          <p className="text-[12px] font-bold text-sub mb-1">貓砂<span className="text-red-500">*</span></p>
+          <div className="grid grid-cols-3 gap-2">
+            {['豆腐砂','礦砂','自備'].map(val=>(
+              <button key={val} type="button"
+                onClick={()=>setFormData({...formData,litterType:val})}
+                className={`btn-choice ${formData.litterType===val?'active':''}`}>
+                {val}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 肉泥授權 */}
+        <div>
+<p className="text-[12px] font-bold text-sub mb-1">肉泥授權（店家將視情況給予肉泥）<span className="text-red-500">*</span></p>
+          <div className="grid grid-cols-2 gap-2">
+            {['同意','不同意'].map(val=>(
+              <button key={val} type="button"
+                onClick={()=>setFormData({...formData,churuConsent:val})}
+                className={`btn-choice ${formData.churuConsent===val?'active':''}`}>
+                {val}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+        {/* 到府照顧 */}
+{type === 'boarding' && formData.serviceType === 'homecare' && (
+  <div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm space-y-6">
+    <div className="flex items-center gap-2 text-milk-deep">
+      <div className="bg-milk-soft/30 p-1.5 rounded-lg">
+        <i data-lucide="home"></i>
+      </div>
+      <span className="text-xs font-black uppercase tracking-[0.2em]">到府照顧內容</span>
+    </div>
+
+{/* 餵食頻率 */}
+<div>
+  <label className="text-[12px] font-bold text-sub mb-2 block uppercase tracking-wider">
+    餵食頻率（可複選）<span className="text-red-500">*</span>
+  </label>
+
+  <div className="grid grid-cols-2 gap-2">
+    {['一天一次', '一天兩次', '一天三次', '其他'].map(val => (
+      <button
+        key={val}
+        type="button"
+        onClick={() => toggleHomecareFreq(val)}
+        className={`btn-choice ${formData.homecareFreqs?.includes(val) ? 'active' : ''}`}
+      >
+        {val}
+      </button>
+    ))}
+  </div>
+
+  {/* 其他輸入框 */}
+  {formData.homecareFreqs?.includes('其他') && (
+    <input
+      type="text"
+      placeholder="請說明餵食習慣"
+      className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+      onChange={e => setFormData({ ...formData, homecareFreqOther: e.target.value })}
+    />
+  )}
+
+  {/* 時間輸入 */}
+  {(formData.homecareFreqs?.includes('一天一次') ||
+    formData.homecareFreqs?.includes('一天兩次') ||
+    formData.homecareFreqs?.includes('一天三次')) && (
+    <div className="mt-3 grid grid-cols-1 gap-2">
+      {formData.homecareFreqs?.includes('一天三次') ? (
+        <>
+          <input
+            type="time"
+            className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+            onChange={e => setFormData({ ...formData, homecareTime1: e.target.value })}
+          />
+          <input
+            type="time"
+            className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+            onChange={e => setFormData({ ...formData, homecareTime2: e.target.value })}
+          />
+          <input
+            type="time"
+            className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+            onChange={e => setFormData({ ...formData, homecareTime3: e.target.value })}
+          />
+        </>
+      ) : formData.homecareFreqs?.includes('一天兩次') ? (
+        <>
+          <input
+            type="time"
+            className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+            onChange={e => setFormData({ ...formData, homecareTime1: e.target.value })}
+          />
+          <input
+            type="time"
+            className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+            onChange={e => setFormData({ ...formData, homecareTime2: e.target.value })}
+          />
+        </>
+      ) : (
+        <input
+          type="time"
+          className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+          onChange={e => setFormData({ ...formData, homecareTime1: e.target.value })}
+        />
+      )}
+    </div>
+  )}
+</div>
+
+    {/* 乾糧 */}
+    <div>
+      <label className="text-[12px] font-bold text-sub mb-1 block">
+        乾糧<span className="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        placeholder="一次餵食量"
+        className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+        onChange={e => setFormData({ ...formData, dryAmount: e.target.value })}
+      />
+    </div>
+
+    {/* 罐頭 */}
+    <div>
+      <label className="text-[12px] font-bold text-sub mb-1 block">
+        罐頭<span className="text-red-500">*</span>
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        {['有','無'].map(val => (
+          <button key={val} type="button"
+            onClick={() => setFormData({ ...formData, wetHas: val })}
+            className={`btn-choice ${formData.wetHas===val?'active':''}`}>
+            {val}
+          </button>
+        ))}
+      </div>
+      {formData.wetHas==='有' && (
+        <input
+          type="text"
+          placeholder="一次餵食量"
+          className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+          onChange={e => setFormData({ ...formData, wetAmount: e.target.value })}
+        />
+      )}
+    </div>
+
+    {/* 點心 */}
+    <div>
+      <label className="text-[12px] font-bold text-sub mb-1 block">
+        點心<span className="text-red-500">*</span>
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        {['有','無'].map(val => (
+          <button key={val} type="button"
+            onClick={() => setFormData({ ...formData, snackHas: val })}
+            className={`btn-choice ${formData.snackHas===val?'active':''}`}>
+            {val}
+          </button>
+        ))}
+      </div>
+      {formData.snackHas === '有' && (
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {['肉泥','凍乾','其他'].map(val => (
+            <button key={val} type="button"
+              onClick={() => setFormData({ ...formData, snackType: val })}
+              className={`btn-choice ${formData.snackType===val?'active':''}`}>
+              {val}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {/* 保健品 */}
+    <div>
+      <label className="text-[12px] font-bold text-sub mb-1 block">
+        保健品<span className="text-red-500">*</span>
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        {['有','無'].map(val => (
+          <button key={val} type="button"
+            onClick={() => setFormData({ ...formData, supplementHas: val })}
+            className={`btn-choice ${formData.supplementHas===val?'active':''}`}>
+            {val}
+          </button>
+        ))}
+      </div>
+      {formData.supplementHas === '有' && (
+        <input
+          type="text"
+          placeholder="品項 / 頻率 / 量"
+          className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+          onChange={e => setFormData({ ...formData, supplementNote: e.target.value })}
+        />
+      )}
+    </div>
+
+    {/* 特殊照顧 */}
+    <div>
+      <label className="text-[12px] font-bold text-sub mb-1 block">
+        特殊照顧服務（另報價）<span className="text-red-500">*</span>
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        {['有','無'].map(val => (
+          <button key={val} type="button"
+            onClick={() => setFormData({ ...formData, specialCareHas: val })}
+            className={`btn-choice ${formData.specialCareHas===val?'active':''}`}>
+            {val}
+          </button>
+        ))}
+      </div>
+      {formData.specialCareHas === '有' && (
+        <input
+          type="text"
+          placeholder="請填寫特殊照顧內容"
+          className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+          onChange={e => setFormData({ ...formData, specialCareNote: e.target.value })}
+        />
+      )}
+    </div>
+
+<div className="rounded-2xl p-[1.5px] bg-gradient-to-br from-white/90 to-milk-soft/50 shadow-md">
+  <div className="flex items-center gap-3 rounded-2xl px-5 py-3 bg-gradient-to-br from-white/95 to-milk-soft/20 border border-white/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_-1px_2px_rgba(0,0,0,0.08)]">
+    
+    {/* Lucide 圖示 */}
+    <i data-lucide="info" className="w-5 h-5 text-milk-deep"></i>
+
+    {/* 文字 */}
+    <span className="text-sm font-semibold text-milk-deep tracking-wide">
+      價格：依地區報價
+    </span>
+  </div>
+</div>
+  </div>
+)}
+
+{type === 'grooming' && (
+  <div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm">
+    <div className="flex items-center gap-2 mb-6 text-milk-deep">
+      <div className="bg-milk-soft/30 p-1.5 rounded-lg">
+        <i data-lucide="scissors" className="w-4 h-4"></i>
+      </div>
+      <span className="text-xs font-black uppercase tracking-[0.2em]">美容服務選擇<span className="text-red-500">*</span></span>
+    </div>
+
+    {/* ✅ 第一步：先選服務類型 */}
+    <div className="mb-6">
+      <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">服務類型<span className="text-red-500">*</span></label>
+      <div className="grid grid-cols-3 gap-2">
+        {groomingServiceTabs.map(item => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => {
+              setFormData({ ...formData, groomingService: item.id, groomingCoat: '' });
+            }}
+            className={`btn-choice ${formData.groomingService === item.id ? 'active' : ''}`}
+          >
+            <div className="text-center">
+              <div className="font-black">{item.title}</div>
+              <div className="text-[10px] opacity-70">{item.desc}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {/* ✅ 第二步：選毛長（有顯示價格） */}
+    {formData.groomingService ? (
+      <div className="mb-6">
+        <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">毛長類型<span className="text-red-500">*</span></label>
+        <div className="grid grid-cols-2 gap-2">
+          {groomingCoats.map(val => (
+            <button
+              key={val}
+              type="button"
+              onClick={() => setFormData({ ...formData, groomingCoat: val })}
+              className={`btn-choice ${formData.groomingCoat === val ? 'active' : ''}`}
+            >
+              <span>{val}</span>
+              <span className="text-[12px] font-black text-milk-deep ml-2">
+                ${groomingPriceMap[formData.groomingService]?.[val]}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : (
+      <div className="mb-6 text-xs text-sub bg-white/50 p-3 rounded-xl border border-milk-soft">
+        請先選擇「服務類型」，才能選擇毛長與價格
+      </div>
+    )}
+
+{/* 加購項目 */}
+<div className="mb-6">
+  <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">單項加購 (可複選)</label>
+  <div className="flex flex-wrap gap-2">
+    {[
+      { label: '剪指甲/剃腳底毛', price: '$150' },
+      { label: '清耳朵', price: '$50' },
+      { label: '廢毛處理/拆結', price: '$200~$500' },
+      { label: '局部去油', price: '$200起' },
+      { label: '碳酸浴', price: '$250起' },
+      { label: '奈米浴', price: '$250起' },
+      { label: '天然草本泥浴', price: '$600起' },
+      { label: '個性貓情緒安撫費', price: '$200~$800' }
+    ].map(item => (
+      <button
+        key={item.label}
+        type="button"
+        onClick={() => toggleAddon(item.label)}
+        className={`btn-choice rounded-full px-4 ${
+          formData.groomingAddons.includes(item.label) ? 'active' : ''
+        }`}
+      >
+        {item.label} <span className="ml-2 text-[11px] font-black text-milk-deep">{item.price}</span>
+      </button>
+    ))}
+  </div>
+</div>
+
+    {/* ✅ 體重加價 */}
+    <div className="bg-white border border-milk-soft rounded-2xl p-4 text-sm leading-relaxed mb-6">
+      <p className="font-bold text-milk-deep mb-2">體重加價</p>
+      <p>超過 5kg (含)，每公斤加收 $100</p>
+    </div>
+<p className="text-[12px] text-sub bg-white/60 px-3 py-2 rounded-xl border border-milk-soft mb-4">
+  ※ 依現場評估給予報價，過年期間依公告為主
+</p>
+{/* 註記區塊 */}
+<div className="bg-orange-50/60 border border-orange-100/80 rounded-[20px] p-4 text-[12px] leading-relaxed text-ink">
+  <p className="font-bold text-orange-800 mb-2">註記：</p>
+  <p>
+    1. 本館不收有<span className="text-red-600 font-bold">傳染風險</span>貓隻
+    (如：打噴嚏、咳嗽、黴菌、貓瘟、貓白血、體內外寄生蟲感染…等)，
+    若美容期間發現，則收取
+    <span className="text-red-600 font-bold">3000元環境清潔費</span>，
+    如經店家判斷太嚴重須由飼主
+    <span className="text-red-600 font-bold">馬上接回並終止合約</span>
+    （也需付清潔費用，費用由店家規定不得異議）
+  </p>
+  <p className="mt-2">
+    2. 需於通知完成後
+    <span className="text-red-600 font-bold">30分鐘內接回</span>，
+    30分鐘後每一小時
+    <span className="text-red-600 font-bold">$200元</span>，
+    未滿30分鐘以
+    <span className="text-red-600 font-bold">半小時100元</span>
+    計算。
+  </p>
+</div>
+  </div>
+)}
         {/* ✅ 乙方（店家）資訊區塊 */}
 <div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm">
   <div className="flex items-center gap-2 mb-4 text-milk-deep">
@@ -937,7 +1585,7 @@ const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHig
     onClose={() => setShowSig(false)}
   />
 )}
-      </div>
+   </div>
     );
   };
 // --- 子元件 5：緬因貓詢問表單 (問卷版) ---
@@ -973,7 +1621,7 @@ const [retired, setRetired] = useState({
   understandFinal: false,
   halfPriceOptions: [],
   name: '', age: '', gender: '', job: '', contact: '', city: '',
-  homeEnv: '', homeEnvOther: ''
+homeEnv: '', homeEnvOther: ''
 });
 
   const toggleArray = (state, setState, key, value) => {
@@ -2669,6 +3317,135 @@ const [retired, setRetired] = useState({
   font-size: 0.85rem; /* 或 12px */
   color: #666;        /* 也可以淡一點 */
 }
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  -webkit-text-size-adjust: 100%;
+}
+
+button, a {
+  touch-action: manipulation;
+}
+input, textarea, select {
+  font-size: 16px !important;
+}
+.upload-card{
+  background:#fff;
+  border:2px dashed var(--milk-soft);
+  border-radius:18px;
+  padding:14px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+  transition:.2s;
+}
+.upload-card:hover{
+  border-color:var(--milk-deep);
+  background:rgba(183,137,99,.06);
+}
+.upload-title{
+  font-size:12px;
+  font-weight:800;
+  color:var(--ink);
+}
+.upload-placeholder{
+  font-size:12px;
+  color:var(--sub);
+  background:#faf6f2;
+  border:1px dashed var(--milk-soft);
+  padding:10px 8px;
+  border-radius:12px;
+  text-align:center;
+  width:100%;
+}
+.upload-preview{
+  width:100%;
+  height:180px;
+  object-fit:contain;  
+  background:#fff;
+  border-radius:12px;
+  border:1px solid var(--milk-soft);
+}
+.upload-tip{
+  font-size:11px;
+  color:var(--milk-deep);
+  font-weight:700;
+}
+.mv-perk-card{
+  background:linear-gradient(180deg,#fffaf4 0%,#fff4ea 100%);
+  border:1.5px solid rgba(183,137,99,.35);
+  border-radius:24px;
+  padding:18px;
+  box-shadow:0 12px 24px rgba(73,58,47,.08);
+}
+
+.mv-perk-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:12px;
+}
+
+.mv-perk-badge{
+  background:var(--milk-deep);
+  color:#fff;
+  font-size:11px;
+  font-weight:800;
+  padding:4px 10px;
+  border-radius:999px;
+  letter-spacing:.12em;
+}
+
+.mv-perk-sub{
+  font-size:12px;
+  font-weight:800;
+  color:var(--milk-deep);
+}
+
+.mv-perk-list{
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:12px;
+  color:var(--ink);
+  line-height:1.6;
+}
+.room-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+}
+.room-card{
+  background:#fff;
+  border:2px solid var(--milk-soft);
+  border-radius:14px;
+  padding:10px;
+  text-align:center;
+  font-size:12px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.04);
+  transition:.2s;
+}
+.room-card.active{
+  border-color:var(--milk-deep);
+  background:rgba(183,137,99,0.08);
+}
+
+.room-title{
+  font-weight:900;
+  font-size:13px;
+  color:var(--ink);
+}
+.room-price{
+  font-weight:900;
+  font-size:14px;
+  color:var(--milk-deep);
+  margin-top:2px;
+}
   </style>
 </head>
 
@@ -2678,7 +3455,7 @@ const [retired, setRetired] = useState({
   <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js?v=1').then(function (reg) {
+    navigator.serviceWorker.register('/sw.js?v=2').then(function (reg) {
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
