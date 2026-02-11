@@ -334,35 +334,44 @@ const SignatureModal = ({ onSave, onClose }) => {
 };
 
   // --- 子元件 4：專業版契約表單 ---
-  const ContractForm = ({ title, type, onBack }) => {
-useEffect(() => {
-  lucide.createIcons();
-}, []); 
+const ContractForm = ({ title, type, onBack }) => {
+  useEffect(() => {
+    lucide.createIcons();
+  }, []);
+  
+  // 每次渲染後重新初始化圖示
+  useEffect(() => {
+    lucide.createIcons();
+  });
 const [formData, setFormData] = useState({
       ownerName: '', phone: '', idNumber: '', email: '', address: '',
       emerName: '', emerRel: '', emerPhone: '',
-petName: '', breed: '', weight: '', ageYears: '', ageMonths: '', gender: '', neutered: '',
-      chip: '', chipNum: '', behavior: [], healthHistory: '', prefHospital: '',
+      petName: '', breed: '', weight: '', ageYears: '', ageMonths: '', gender: '', neutered: '',
+      chip: '', chipNum: '', behavior: [],
+      healthHistory: '', healthHistoryItems: [], healthHistoryOther: '', healthNote: '',
+      prefHospital: '',
       groomingCoat: '', groomingService: '', groomingAddons: [],
       agreeTerms: false, agreeHighRisk: false,
       lineConfirmed: false ,serviceType: '',
-roomType: '',
-vaccineProof: null,
-dewormProof: null,
-dryFreq: '', dryAmount: '',
-wetHas: '', wetFreq: '', wetAmount: '',
-snackHas: '', snackType: '',
-supplementHas: '', supplementNote: '',
-litterType: '',
-churuConsent: '',
-homecareFreqs: [],
-homecareFreqOther: '',
-homecareTime1: '',
-homecareTime2: '',
-homecareTime3: '',
-specialCareHas: '',
-specialCareNote: ''
+      roomType: '',
+      vaccineProof: null,
+      dewormProof: null,
+      dryFreq: '', dryAmount: '',
+      wetHas: '', wetFreq: '', wetAmount: '',
+      snackHas: '', snackType: '',
+      supplementHas: '', supplementNote: '',
+      litterType: '',
+      churuConsent: '',
+      homecareFreqs: [],
+      homecareFreqOther: '',
+      homecareTime1: '',
+      homecareTime2: '',
+      homecareTime3: '',
+      specialCareHas: '',
+      specialCareNote: '',
+      sigTime: ''   
     });
+    
 const [vaccinePreview, setVaccinePreview] = useState(null);
 const [dewormPreview, setDewormPreview] = useState(null);
     const [showSig, setShowSig] = useState(false);
@@ -423,6 +432,14 @@ const groomingServiceTabs = [
 ];
 
 const groomingCoats = ['短毛貓','中短密毛貓','長毛貓','密長毛貓'];
+const medicalHistoryOptions = [
+  '心臟病','氣喘','氣管塌陷',
+  '白內障','癲癇','心絲蟲',
+  '艾利希體','腹膜炎','腹積水',
+  '髖關節問題','骨折','腸炎',
+  '血便','血尿','懷孕',
+  '傳染性疾病','手術外傷未癒合','其他'
+];
     // 高風險判斷
 const isHighRisk = (() => {
   const years = parseFloat(formData.ageYears);
@@ -610,7 +627,7 @@ if (!sigPad.current) return;
         const dewormUrl = formData.dewormFile ? await uploadToStorage(formData.dewormFile, 'deworms') : null;
 
         // 4. 準備要儲存的資料 (資料庫格式)
-        const dbData = {
+const dbData = {
           // --- 飼主資料 ---
           owner_name: formData.ownerName,
           phone: formData.phone,
@@ -637,6 +654,7 @@ if (!sigPad.current) return;
     
           // --- 檔案與系統 ---
           sig_image: sigUrl,
+          sig_time: formData.sigTime,   // ✅ 簽署時間寫入 Supabase
           vaccine_proof: vaccineUrl,
           deworm_proof: dewormUrl,
           submitted_at: new Date().toISOString(),
@@ -806,7 +824,13 @@ if (!sigPad.current) return;
 
     {/* 身分證字號 */}
     <div className="form-group">
-      <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">身分證字號 / ID Number<span className="text-red-500">*</span></label>
+<label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">
+  身分證字號 / ID Number
+  <span className="text-red-500">*</span>
+  {type === 'boarding' && (
+    <span className="text-red-500 ml-2">[入住當天需攜帶核對]</span>
+  )}
+</label>
       <input 
         type="text" 
         name="idNumber" 
@@ -973,16 +997,64 @@ if (!sigPad.current) return;
 <label className="text-[12px] font-bold text-sub ml-1 mb-2 block uppercase tracking-wider">過往病史 / Past Medical History <span className="text-orange-600 font-black ml-1">請務必如實告知!</span><span className="text-red-500">*</span></label>
               <div className="grid grid-cols-2 gap-2 mb-3">
                 {['有', '無'].map(val => (
-                  <button key={val} type="button" onClick={() => setFormData({...formData, healthHistory: val})} className={`btn-choice ${formData.healthHistory === val ? 'active' : ''}`}>{val}</button>
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setFormData({
+                      ...formData,
+                      healthHistory: val,
+                      ...(val === '無' ? { healthHistoryItems: [], healthHistoryOther: '', healthNote: '' } : {})
+                    })}
+                    className={`btn-choice ${formData.healthHistory === val ? 'active' : ''}`}
+                  >
+                    {val}
+                  </button>
                 ))}
               </div>
-              <textarea name="healthNote" rows="2" placeholder="食物/藥物過敏史、手術史或其他注意事項..." className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange}></textarea>
+
+              {formData.healthHistory === '有' && (
+                <div className="bg-white/60 border border-milk-soft rounded-2xl p-4 mb-3">
+                  <p className="text-[12px] font-bold text-sub mb-2">請勾選貓咪曾有過的狀況：</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {medicalHistoryOptions.map(val => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => {
+                          const current = Array.isArray(formData.healthHistoryItems) ? formData.healthHistoryItems : [];
+                          const next = current.includes(val) ? current.filter(i => i !== val) : [...current, val];
+                          setFormData({ ...formData, healthHistoryItems: next });
+                        }}
+                        className={`btn-choice ${Array.isArray(formData.healthHistoryItems) && formData.healthHistoryItems.includes(val) ? 'active' : ''}`}
+                      >
+                        {val === '其他' ? '+ 其他' : val}
+                      </button>
+                    ))}
+                  </div>
+
+                  {Array.isArray(formData.healthHistoryItems) && formData.healthHistoryItems.includes('其他') && (
+                    <input
+                      type="text"
+                      name="healthHistoryOther"
+                      placeholder="請填寫其他病史"
+                      className="w-full mt-3 bg-white border border-milk-soft rounded-xl p-3 text-sm outline-none"
+                      value={formData.healthHistoryOther}
+                      onChange={handleChange}
+                    />
+                  )}
+                </div>
+              )}
+
+              <textarea
+                name="healthNote"
+                rows="2"
+                placeholder="食物/藥物過敏史、手術史或其他注意事項..."
+                className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner"
+                value={formData.healthNote}
+                onChange={handleChange}
+              ></textarea>
             </div>
-<div className="mb-1.5">
-<label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">指定就醫診療機構 (若未填寫，則依店家特約醫院)</label>
-              <input type="text" name="prefHospital" placeholder="若未填寫，則依店家特約醫院" className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm outline-none focus:border-milk-deep transition-all" onChange={handleChange} />
-            </div>
-            
+           
             <div className="bg-orange-50/60 border border-orange-100/80 rounded-[24px] p-5 flex gap-4 items-start shadow-sm relative overflow-hidden group">
               {/* 背景微裝飾 */}
               <div className="absolute -right-2 -bottom-2 opacity-5 group-hover:scale-110 transition-transform"><i data-lucide="hospital" className="w-16 h-16 text-orange-900"></i></div>
@@ -1063,7 +1135,7 @@ if (!sigPad.current) return;
 {/* 上傳證明（疫苗 + 驅蟲） */}
 <div>
   <label className="text-[12px] font-bold text-sub mb-3 block uppercase tracking-wider">
-    上傳證明（請上傳：1.疫苗注射證明 2.體內外驅蟲證明）<span className="text-red-500">*</span>
+    上傳證明（請上傳：1.疫苗注射證明 2.體內外驅蟲證明
   </label>
 
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2035,7 +2107,6 @@ if (!sigPad.current) return;
           )}
         </TermsModal>
       )}
-      
 {activeModal === 'highrisk' && (
   <TermsModal
     title={type === 'boarding' ? "高風險寵物寄養同意聲明" : "高風險寵物美容同意聲明"}
@@ -2118,8 +2189,10 @@ if (!sigPad.current) return;
 {showSig && (
   <SignatureModal
     onSave={(data) => {
+      const now = new Date();
       setSigImage(data);
-      setSigTime(new Date());
+      setSigTime(now);
+      setFormData(prev => ({ ...prev, sigTime: now.toISOString() }));
       setShowSig(false);
     }}
     onClose={() => setShowSig(false)}
@@ -2296,7 +2369,14 @@ const HistoryModal = ({ records, onClose, onSelect }) => {
 };
 // --- 子元件 6：緬因貓詢問表單 (問卷版) ---
 const MaineCoonForm = ({ onBack }) => {
-  useEffect(() => lucide.createIcons(), []);
+  useEffect(() => {
+    lucide.createIcons();
+  }, []);
+  
+  // 每次渲染後重新初始化圖示
+  useEffect(() => {
+    lucide.createIcons();
+  });
   const [step, setStep] = useState('select'); // ✅ 先選擇頁
   const [tab, setTab] = useState('kitten');
 
@@ -2853,7 +2933,7 @@ homeEnv: '', homeEnvOther: ''
 };
 
   // --- 主程式：控制中心 ---
-  function App() {
+function App() {
     const getHash = () => window.location.hash.replace('#', '') || 'home';
     const [view, setView] = useState(getHash());
 
@@ -2863,6 +2943,11 @@ homeEnv: '', homeEnvOther: ''
       lucide.createIcons();
       return () => window.removeEventListener('hashchange', handlePopState);
     }, [view]);
+    
+    // 每次渲染後重新初始化圖示
+    useEffect(() => {
+      lucide.createIcons();
+    });
 
     const navigateTo = (v) => { window.location.hash = v; };
 
@@ -4162,7 +4247,7 @@ input, textarea, select {
   <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js?v=2').then(function (reg) {
+    navigator.serviceWorker.register('/sw.js?v=3').then(function (reg) {
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
