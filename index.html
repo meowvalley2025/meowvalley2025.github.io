@@ -301,11 +301,13 @@ const SignatureModal = ({ onSave, onClose }) => {
         </button>
       </div>
 
-      <div className="flex-1 bg-[#fcfaf8] relative touch-none">
+      {/* ✅ 畫布區增加底部空間，避免被按鈕遮住 */}
+      <div className="flex-1 bg-[#fcfaf8] relative touch-none" style={{ paddingBottom: '88px' }}>
         <canvas ref={canvasRef} className="w-full h-full block"></canvas>
       </div>
 
-      <div className="p-4 bg-white border-t flex gap-3">
+      {/* ✅ 底部按鈕固定在畫面最下方 */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t flex gap-3">
         <button
           onClick={() => {
             const ctx = canvasRef.current.getContext('2d');
