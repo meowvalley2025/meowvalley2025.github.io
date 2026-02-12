@@ -371,7 +371,27 @@ const [formData, setFormData] = useState({
       homecareTime3: '',
       specialCareHas: '',
       specialCareNote: '',
-      sigTime: ''   
+      sigTime: '',
+
+      // ✅ 住宿健康與規範確認
+      boardingHealthOk: '',
+      boardingHasDisease: '',
+      boardingHealthDisease: '',
+      boardingSkinIssue: '',
+      boardingSkinNote: '',
+      boardingDewormed: '',
+      boardingDewormDate: '',
+      boardingInfectionAck: false,
+      boardingNailTrim: '',
+      boardingNailTrimDate: '',
+      boardingVaccinated: '',
+      boardingVaccineTypes: [],
+      boardingNeuteredConfirm: '',
+      boardingInHeat: '',
+      boardingPregnant: '',
+      boardingLateFeeAck: false,
+      boardingNot24hAck: '',
+      boardingMedicalConsent: ''
     });
     
 const [vaccinePreview, setVaccinePreview] = useState(null);
@@ -386,7 +406,18 @@ const [isSearching, setIsSearching] = useState(false);
 const [historyRecords, setHistoryRecords] = useState([]); // 儲存搜尋結果
 const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [activeModal, setActiveModal] = useState(null);
+// ❗ 缺少欄位狀態
+const [missingBoarding, setMissingBoarding] = useState([]);
 
+const isMissing = (key) => missingBoarding.includes(key);
+
+// ✅ 快速更新 + 清除缺失
+const setField = (patch, clearKeys=[]) => {
+  setFormData(prev => ({ ...prev, ...patch }));
+  if (clearKeys.length) {
+    setMissingBoarding(prev => prev.filter(k => !clearKeys.includes(k)));
+  }
+};
     const handleChange = (e) => {
       const { name, value, type, checked } = e.target;
       setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
@@ -398,6 +429,14 @@ const toggleAddon = (val) => {
     : [...current, val];
   setFormData({ ...formData, groomingAddons: next });
 };
+const toggleBoardingVaccine = (val) => {
+  const current = Array.isArray(formData.boardingVaccineTypes) ? formData.boardingVaccineTypes : [];
+  const next = current.includes(val)
+    ? current.filter(v => v !== val)
+    : [...current, val];
+  setFormData({ ...formData, boardingVaccineTypes: next });
+};
+
 const toggleHomecareFreq = (val) => {
   const current = Array.isArray(formData.homecareFreqs) ? formData.homecareFreqs : [];
   const next = current.includes(val)
@@ -610,7 +649,51 @@ const handleApplyHistory = (record) => {
   setShowHistoryModal(false);
   alert(`✅ 已帶入 ${record.pet_name} 的過往資料。`);
 };
+// ✅ 入住前健康規範必填驗證
+const validateBoardingHealth = () => {
+  const missing = [];
+
+  if (!formData.boardingHealthOk) missing.push('healthOk');
+  if (!formData.boardingHasDisease) missing.push('hasDisease');
+  if (formData.boardingHasDisease === '是' && !formData.boardingHealthDisease?.trim()) missing.push('diseaseNote');
+
+  if (!formData.boardingSkinIssue) missing.push('skinIssue');
+  if (formData.boardingSkinIssue === '是' && !formData.boardingSkinNote?.trim()) missing.push('skinNote');
+
+  if (!formData.boardingDewormed) missing.push('dewormed');
+  if (!formData.boardingDewormDate?.trim()) missing.push('dewormDate');
+
+  if (!formData.boardingInfectionAck) missing.push('infectionAck');
+
+  if (!formData.boardingNailTrim) missing.push('nailTrim');
+  if (formData.boardingNailTrim === '是' && !formData.boardingNailTrimDate?.trim()) missing.push('nailTrimDate');
+
+  if (!formData.boardingVaccinated) missing.push('vaccinated');
+  if (formData.boardingVaccinated === '是' && (!formData.boardingVaccineTypes || formData.boardingVaccineTypes.length === 0))
+    missing.push('vaccineTypes');
+
+  if (!formData.boardingNeuteredConfirm) missing.push('neutered');
+  if (!formData.boardingInHeat) missing.push('inHeat');
+
+  if (!formData.boardingPregnant) missing.push('pregnant');
+
+  if (!formData.boardingLateFeeAck) missing.push('lateFee');
+
+  if (!formData.boardingNot24hAck) missing.push('not24h');
+  if (!formData.boardingMedicalConsent) missing.push('medicalConsent');
+
+  setMissingBoarding(missing); // 👈 這行關鍵：直接顯示紅框
+  return missing;
+};
 const handleFinalSubmit = async () => {
+  // ✅ 入住前健康規範必填驗證
+if (type === 'boarding' && formData.serviceType === 'boarding') {
+  const missing = validateBoardingHealth();
+  if (missing.length > 0) {
+    alert('⚠️ 入住前健康與規範確認尚未填寫完整：\n' + missing.join('、'));
+    return;
+  }
+}
   const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || !sigImage;
   if(!formData.ownerName || !sigImage) return alert("請填寫姓名並完成簽名");
   
@@ -1210,7 +1293,7 @@ const dbData = {
     {/* 住宿調查 */}
     <div>
 <label className="text-[12px] font-bold text-sub mb-2 block uppercase tracking-wider">
-  飲食習慣（需自行攜帶，務必帶乾糧喔）<span className="text-red-500">*</span>
+  飲食習慣（需自行攜帶，務必帶乾糧）
 </label>
       <div className="space-y-4">
         {/* 乾糧 */}
@@ -1656,6 +1739,280 @@ const dbData = {
 </div>
   </div>
 )}
+
+{type === 'boarding' && formData.serviceType === 'boarding' && (
+  <div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm">
+    <div className="flex items-center gap-2 mb-4 text-milk-deep">
+      <div className="bg-milk-soft/30 p-1.5 rounded-lg">
+        <i data-lucide="alert-triangle" className="w-4 h-4"></i>
+      </div>
+      <span className="text-xs font-black uppercase tracking-[0.2em]">
+        入住前健康與規範確認<span className="text-red-500">*</span>
+      </span>
+    </div>
+
+    <div className="space-y-4 text-[12px] leading-relaxed text-ink">
+
+{/* 1. 健康狀況 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('healthOk') || isMissing('hasDisease') || isMissing('diseaseNote') ? 'field-missing' : ''}`}>
+  <p className="font-bold mb-2">1．健康狀況良好？<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingHealthOk: val }, ['healthOk'])}
+        className={`btn-choice ${formData.boardingHealthOk===val?'active':''} ${isMissing('healthOk')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+
+  <p className="font-bold mt-3 mb-2">是否有疾病？<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingHasDisease: val }, ['hasDisease'])}
+        className={`btn-choice ${formData.boardingHasDisease===val?'active':''} ${isMissing('hasDisease')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+
+  {formData.boardingHasDisease === '是' && (
+    <input
+      className={`mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('diseaseNote')?'input-missing':''}`}
+      placeholder="如有疾病請填寫"
+      value={formData.boardingHealthDisease}
+      onChange={e=>setField({ boardingHealthDisease:e.target.value }, ['diseaseNote'])}
+    />
+  )}
+
+  <div className="note-box mt-2">
+    <div className="note-title">⚠️ 注意事項</div>
+    若有<span className="text-red-600 font-bold">傳染病 / 皮膚病 / 先天或慢性 / 重大疾病</span>未告知，
+    造成貓隻傷亡須飼主負責並賠償，另需賠款店家<span className="text-red-600 font-bold">三萬元</span>。<br/>
+    住宿期間若經醫師判定<span className="text-red-600 font-bold">具傳染風險</span>，須接回或送醫住院，
+    <span className="text-red-600 font-bold">本店無法再接回住宿</span>，並需負擔清潔費<span className="text-red-600 font-bold">約3000元</span>。
+  </div>
+</div>
+
+{/* 2. 皮膚問題 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('skinIssue') || isMissing('skinNote') ? 'field-missing' : ''}`}>
+  <p className="font-bold mb-2">2．是否有皮膚問題？（黴菌、耳疥蟲…）<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingSkinIssue: val }, ['skinIssue'])}
+        className={`btn-choice ${formData.boardingSkinIssue===val?'active':''} ${isMissing('skinIssue')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+  {formData.boardingSkinIssue === '是' && (
+    <input
+      className={`mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('skinNote')?'input-missing':''}`}
+      placeholder="請簡述皮膚問題"
+      value={formData.boardingSkinNote}
+      onChange={e=>setField({ boardingSkinNote:e.target.value }, ['skinNote'])}
+    />
+  )}
+  <div className="note-box mt-2">
+    經店家判斷若有<span className="text-red-600 font-bold">感染問題</span>則無法入住。
+    未如實告知將收取<span className="text-red-600 font-bold">環境消毒費3000元</span>並請接回或送醫。
+  </div>
+</div>
+
+{/* 3. 驅蟲 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('dewormed')||isMissing('dewormDate')?'field-missing':''}`}>
+  <p className="font-bold mb-2">3．是否體內外驅蟲、除蚤？<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingDewormed: val }, ['dewormed'])}
+        className={`btn-choice ${formData.boardingDewormed===val?'active':''} ${isMissing('dewormed')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+  <input
+    className={`mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('dewormDate')?'input-missing':''}`}
+    placeholder="近期驅蟲時間"
+    value={formData.boardingDewormDate}
+    onChange={e=>setField({ boardingDewormDate:e.target.value }, ['dewormDate'])}
+  />
+  <div className="note-box mt-2">
+    若發現<span className="text-red-600 font-bold">跳蚤 / 壁蝨 / 絛蟲</span>等，
+    將收取<span className="text-red-600 font-bold">消毒費3000元</span>並請接回或送醫。
+  </div>
+</div>
+
+{/* 4. 傳染風險同意 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('infectionAck')?'field-missing':''}`}>
+  <p className="font-bold mb-2">4．傳染風險清潔費同意<span className="text-red-500">*</span></p>
+  <button type="button"
+    onClick={() => setField({ boardingInfectionAck: !formData.boardingInfectionAck }, ['infectionAck'])}
+    className={`btn-choice w-full ${formData.boardingInfectionAck?'active':''} ${isMissing('infectionAck')?'btn-missing':''}`}
+  >
+    {formData.boardingInfectionAck ? '✅ 我已了解' : '我已了解（請點擊同意）'}
+  </button>
+  <div className="note-box mt-2">
+    如遇<span className="text-red-600 font-bold">打噴嚏、咳嗽、跳蚤、黴菌、蟲蟲</span>等傳染風險，
+    需視情況加收<span className="text-red-600 font-bold">清潔費3000元起</span>，
+    情況過嚴重需<span className="text-red-600 font-bold">飼主立即接回</span>，
+    且清潔費由店家規定不得異議。
+  </div>
+</div>
+
+{/* 5. 剪指甲 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('nailTrim')||isMissing('nailTrimDate')?'field-missing':''}`}>
+  <p className="font-bold mb-2">5．是否剪指甲？<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingNailTrim: val }, ['nailTrim'])}
+        className={`btn-choice ${formData.boardingNailTrim===val?'active':''} ${isMissing('nailTrim')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+  {formData.boardingNailTrim === '是' && (
+    <input
+      className={`mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('nailTrimDate')?'input-missing':''}`}
+      placeholder="近期剪指甲時間"
+      value={formData.boardingNailTrimDate}
+      onChange={e=>setField({ boardingNailTrimDate:e.target.value }, ['nailTrimDate'])}
+    />
+  )}
+  <div className="note-box mt-2">
+    因避免指甲太尖導致褓母受傷，故經店家判斷<span className="text-red-600 font-bold">無法放風</span>，請體諒照顧人員。
+  </div>
+</div>
+
+{/* 6. 疫苗 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('vaccinated')||isMissing('vaccineTypes')?'field-missing':''}`}>
+  <p className="font-bold mb-2">6．一年內是否施打疫苗？<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingVaccinated: val }, ['vaccinated'])}
+        className={`btn-choice ${formData.boardingVaccinated===val?'active':''} ${isMissing('vaccinated')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+  {formData.boardingVaccinated === '是' && (
+    <div className="mt-2 grid grid-cols-3 gap-2">
+      {['三合一疫苗','五合一疫苗','狂犬病疫苗'].map(val => (
+        <button key={val} type="button"
+          onClick={() => { toggleBoardingVaccine(val); setMissingBoarding(prev => prev.filter(k=>k!=='vaccineTypes')); }}
+          className={`btn-choice ${formData.boardingVaccineTypes.includes(val)?'active':''} ${isMissing('vaccineTypes')?'btn-missing':''}`}
+        >
+          {val}
+        </button>
+      ))}
+    </div>
+  )}
+  <div className="note-box mt-2">
+    <span className="text-red-600 font-bold">施打未滿7天不可入住</span>；
+    未施打或幼貓未滿三劑則<span className="text-red-600 font-bold">不得放風</span>，
+    健康風險由飼主自負。
+  </div>
+</div>
+
+{/* 7. 結紮/發情 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('neutered')||isMissing('inHeat')?'field-missing':''}`}>
+  <p className="font-bold mb-2">7．是否結紮？<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2 mb-3">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingNeuteredConfirm: val }, ['neutered'])}
+        className={`btn-choice ${formData.boardingNeuteredConfirm===val?'active':''} ${isMissing('neutered')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+  <p className="font-bold mb-2">是否發情中？<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingInHeat: val }, ['inHeat'])}
+        className={`btn-choice ${formData.boardingInHeat===val?'active':''} ${isMissing('inHeat')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+  <div className="note-box mt-2">
+    剛結紮或術後<span className="text-red-600 font-bold">7天內無法入住</span>。
+    發情中<span className="text-red-600 font-bold">無法放風</span>，
+    若亂尿尿將收取<span className="text-red-600 font-bold">1000～3000元清潔費</span>，
+    情況嚴重需接回。
+  </div>
+</div>
+
+{/* 8. 懷孕 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('pregnant')?'field-missing':''}`}>
+  <p className="font-bold mb-2">8．是否懷孕？<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingPregnant: val }, ['pregnant'])}
+        className={`btn-choice ${formData.boardingPregnant===val?'active':''} ${isMissing('pregnant')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+  <div className="note-box mt-2">
+    懷孕中或產後<span className="text-red-600 font-bold">一個月內無法入住</span>。
+  </div>
+</div>
+
+{/* 9. 延時費用 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('lateFee')?'field-missing':''}`}>
+  <p className="font-bold mb-2">9．延時費用同意<span className="text-red-500">*</span></p>
+  <button type="button"
+    onClick={() => setField({ boardingLateFeeAck: !formData.boardingLateFeeAck }, ['lateFee'])}
+    className={`btn-choice w-full ${formData.boardingLateFeeAck?'active':''} ${isMissing('lateFee')?'btn-missing':''}`}
+  >
+    {formData.boardingLateFeeAck ? '✅ 我已了解' : '我已了解（請點擊同意）'}
+  </button>
+  <div className="note-box mt-2">
+    延時費<span className="text-red-600 font-bold">200元/小時</span>，
+    超過營業時間為<span className="text-red-600 font-bold">300元/小時</span>。
+    若期滿未接回且失聯，視為同意續住；
+    續住滿三天仍失聯，將依動保法棄養處理並加收費用。
+  </div>
+</div>
+
+{/* 11. 非24小時旅館 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('not24h')?'field-missing':''}`}>
+  <p className="font-bold mb-2">11．是否理解本館非24小時旅館？<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingNot24hAck: val }, ['not24h'])}
+        className={`btn-choice ${formData.boardingNot24hAck===val?'active':''} ${isMissing('not24h')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+  <div className="note-box mt-2">
+    因非24小時旅館，若突發狀況可能<span className="text-red-600 font-bold">無法第一時間發現</span>，
+    可能影響黃金就醫時間。
+  </div>
+</div>
+
+{/* 12. 就醫同意 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('medicalConsent')?'field-missing':''}`}>
+  <p className="font-bold mb-2">12．緊急就醫同意<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingMedicalConsent: val }, ['medicalConsent'])}
+        className={`btn-choice ${formData.boardingMedicalConsent===val?'active':''} ${isMissing('medicalConsent')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+  <div className="note-box mt-2">
+    如需就醫將<span className="text-red-600 font-bold">立即通知飼主接回</span>；
+    若無法親自帶回，經飼主同意將代送合作醫院，<span className="text-red-600 font-bold">所有醫療費用由飼主負擔</span>。<br/>
+    送醫費用：營業時間<span className="text-red-600 font-bold">300元/小時</span>，
+    非營業時間<span className="text-red-600 font-bold">500元/小時</span>，車資另計。
+  </div>
+</div>
+
+    </div>
+  </div>
+)}
+
         {/* ✅ 乙方（店家）資訊區塊 */}
 <div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mb-6 shadow-sm">
   <div className="flex items-center gap-2 mb-4 text-milk-deep">
@@ -2116,7 +2473,7 @@ const dbData = {
     onAgree={() => setFormData(prev => ({ ...prev, agreeHighRisk: true }))}
   >
     {type === 'boarding' ? (
-      <div className="space-y-4 text-sm leading-relaxed font-hand" style={{ color: 'var(--ink)' }}>
+      <div className="space-y-4 text-sm leading-relaxed text-gray-600 font-sans">
 
         <div className="pb-4 border-b border-milk-soft">
           <p>針對高齡、幼齡、過往病史或行為敏感寵物之特別約定。</p>
@@ -2147,7 +2504,7 @@ const dbData = {
 
       </div>
     ) : (
-      <div className="space-y-4 text-sm leading-relaxed font-hand" style={{ color: 'var(--ink)' }}>
+      <div className="space-y-4 text-sm leading-relaxed text-gray-600 font-sans">
 
         <div className="pb-4 border-b border-milk-soft">
           <p>針對高齡、幼齡、過往病史或行為敏感寵物之特別約定。</p>
@@ -4240,6 +4597,40 @@ input, textarea, select {
   color:var(--milk-deep);
   margin-top:2px;
 }
+/* 必填缺失紅框 */
+.field-missing {
+  border-color: #f87171 !important;
+  box-shadow: 0 0 0 2px rgba(248,113,113,0.2);
+}
+
+.input-missing {
+  border-color: #f87171 !important;
+  background: #fff5f5 !important;
+}
+
+.btn-missing {
+  border-color: #f87171 !important;
+  color: #e11d48 !important;
+  background: rgba(248,113,113,0.08) !important;
+}
+
+.note-box {
+  background: #fffdfb;
+  border: 1px solid #f0e0d8;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #7b5a5a;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.note-title {
+  font-weight: 800;
+  color: #b66c6c;
+  margin-bottom: 6px;
+}
+
   </style>
 </head>
 
@@ -4249,7 +4640,7 @@ input, textarea, select {
   <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js?v=3').then(function (reg) {
+    navigator.serviceWorker.register('/sw.js?v=4').then(function (reg) {
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
