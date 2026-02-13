@@ -346,7 +346,7 @@ const ContractForm = ({ title, type, onBack }) => {
     lucide.createIcons();
   });
 const [formData, setFormData] = useState({
-      ownerName: '', phone: '', idNumber: '', email: '', address: '',
+      ownerName: '', phone: '', idNumber: '', email: '', address: '', ownerSocial: '',
       emerName: '', emerRel: '', emerPhone: '',
       petName: '', breed: '', weight: '', ageYears: '', ageMonths: '', gender: '', neutered: '',
       chip: '', chipNum: '', behavior: [],
@@ -356,6 +356,9 @@ const [formData, setFormData] = useState({
       agreeTerms: false, agreeHighRisk: false,
       lineConfirmed: false ,serviceType: '',
       roomType: '',
+      boardingStartDate: '',
+      boardingEndDate: '',
+      boardingCheckinTime: '',
       vaccineProof: null,
       dewormProof: null,
       dryFreq: '', dryAmount: '',
@@ -937,6 +940,20 @@ const dbData = {
       />
     </div>
 
+    {/* IG / 社群帳號（非必填） */}
+    <div className="form-group">
+      <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">
+        IG/社群帳號（備註：每日會幫寶貝拍照、影片分享）（非必填）
+      </label>
+      <input 
+        type="text" 
+        name="ownerSocial" 
+        placeholder="例如：@your_ig"
+        className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
+        onChange={handleChange} 
+      />
+    </div>
+
     {/* 通訊地址 */}
     <div className="form-group">
       <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">通訊地址 / Address<span className="text-red-500">*</span></label>
@@ -1215,6 +1232,36 @@ const dbData = {
       </button>
     ))}
   </div>
+</div>
+
+{/* 入住日期 */}
+<div>
+  <label className="text-[12px] font-bold text-sub mb-2 block uppercase tracking-wider">
+    入住日期：年月日～年月日、幾點
+  </label>
+  <div className="grid grid-cols-2 gap-2 mb-2">
+    <input
+      type="date"
+      name="boardingStartDate"
+      className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+      onChange={handleChange}
+      value={formData.boardingStartDate}
+    />
+    <input
+      type="date"
+      name="boardingEndDate"
+      className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+      onChange={handleChange}
+      value={formData.boardingEndDate}
+    />
+  </div>
+  <input
+    type="time"
+    name="boardingCheckinTime"
+    className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+    onChange={handleChange}
+    value={formData.boardingCheckinTime}
+  />
 </div>
 
 {/* 上傳證明（疫苗 + 驅蟲） */}
@@ -2081,7 +2128,7 @@ const dbData = {
       <p className={`font-bold text-sm ${
         formData.agreeHighRisk ? 'text-green-600' : 'text-red-600'
       }`}>
-        【高風險】美容服務風險告知
+        {type === 'boarding' ? '【高風險】寄養服務風險告知' : '【高風險】美容服務風險告知'}
       </p>
       <p className="text-xs text-sub">
         {formData.agreeHighRisk ? '已完成同意' : '檢測到毛孩符合高風險條件，請務必閱讀'}
@@ -4640,7 +4687,7 @@ input, textarea, select {
   <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js?v=4').then(function (reg) {
+    navigator.serviceWorker.register('/sw.js?v=5').then(function (reg) {
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
