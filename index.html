@@ -940,19 +940,21 @@ const dbData = {
       />
     </div>
 
-    {/* IG / 社群帳號（非必填） */}
-    <div className="form-group">
-      <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">
-        IG/社群帳號（備註：每日會幫寶貝拍照、影片分享）（非必填）
-      </label>
-      <input 
-        type="text" 
-        name="ownerSocial" 
-        placeholder="例如：@your_ig"
-        className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
-        onChange={handleChange} 
-      />
-    </div>
+{/* IG / 社群帳號（僅住宿顯示） */}
+{type === 'boarding' && (
+  <div className="form-group">
+    <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">
+      IG/社群帳號（非必填）
+    </label>
+    <input 
+      type="text" 
+      name="ownerSocial" 
+      placeholder="例如：@your_ig"
+      className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
+      onChange={handleChange} 
+    />
+  </div>
+)}
 
     {/* 通訊地址 */}
     <div className="form-group">
@@ -2795,6 +2797,7 @@ const MaineCoonForm = ({ onBack }) => {
     colors: [], colorOther: '',
     priceRange: '', monthlyBudget: '',
     knowledgeAck: false,
+    ackTraits: false,
     lifetimeCommit: '',
     ackCommit: false,
     halfPriceOptions: []
@@ -2824,21 +2827,66 @@ homeEnv: '', homeEnvOther: ''
     setState({ ...state, [key]: next });
   };
 
+  const validateKitten = () => {
+    const missing = [];
+    if (!kitten.name.trim()) missing.push('姓名');
+    if (!kitten.age.trim()) missing.push('年齡');
+    if (!kitten.gender) missing.push('性別');
+    if (!kitten.contact.trim()) missing.push('聯繫方式');
+    if (kitten.experience.length === 0) missing.push('是否養過貓咪');
+    if (kitten.experience.includes('其他') && !kitten.experienceOther.trim()) missing.push('養貓經驗-其他');
+    if (kitten.breeds.length === 0) missing.push('曾經飼養品種');
+    if (kitten.breeds.includes('其他') && !kitten.breedOther.trim()) missing.push('飼養品種-其他');
+    if (!kitten.catsNow.trim()) missing.push('目前貓隻數量');
+    if (!kitten.desiredGender) missing.push('想找貓咪性別');
+    if (kitten.colors.length === 0) missing.push('想找花色');
+    if (kitten.colors.includes('其他') && !kitten.colorOther.trim()) missing.push('花色-其他');
+    if (!kitten.priceRange.trim()) missing.push('價格預期');
+    if (!kitten.monthlyBudget.trim()) missing.push('每月餵養預算');
+    if (!kitten.ackTraits) missing.push('了解緬因貓優缺點');
+    if (!kitten.ackCommit) missing.push('終養承諾');
+    return missing;
+  };
+
+  const validateRetired = () => {
+    const missing = [];
+    if (retired.experience.length === 0) missing.push('是否養過貓');
+    if (retired.experience.includes('其他') && !retired.experienceOther.trim()) missing.push('養貓經驗-其他');
+    if (!retired.catsNow.trim()) missing.push('家裡目前貓數');
+    if (retired.residentPersonality.length === 0) missing.push('原住貓個性');
+    if (retired.residentPersonality.includes('其他') && !retired.residentPersonalityOther.trim()) missing.push('原住貓個性-其他');
+    if (!retired.expYears) missing.push('養貓經驗年數');
+    if (retired.expYears === '其他' && !retired.expYearsOther.trim()) missing.push('養貓年數-其他');
+    if (retired.acceptable.length === 0) missing.push('可接受讓渡狀況');
+    if (!retired.savings) missing.push('存款狀況');
+    if (retired.savings === '其他' && !retired.savingsOther.trim()) missing.push('存款-其他');
+    if (retired.provide.length === 0) missing.push('願意提供事項');
+    if (!retired.promisesAck) missing.push('承諾事項同意');
+    if (!retired.statementsAck) missing.push('聲明同意');
+    if (!retired.understandFinal) missing.push('送養評估說明同意');
+    if (!retired.name.trim()) missing.push('姓名');
+    if (!retired.age.trim()) missing.push('年齡');
+    if (!retired.gender.trim()) missing.push('性別');
+    if (!retired.job.trim()) missing.push('職業');
+    if (!retired.contact.trim()) missing.push('聯絡方式');
+    if (!retired.city.trim()) missing.push('居住城市');
+    if (!retired.homeEnv) missing.push('住家環境');
+    if (retired.homeEnv === '其他' && !retired.homeEnvOther.trim()) missing.push('住家環境-其他');
+    return missing;
+  };
+
   const handleSubmit = () => {
-    if (tab === 'kitten' && !kitten.ackCommit) {
-      alert("請勾選「我已準備好並願意承諾」才能送出");
-      return;
-    }
-    if (tab === 'retired' && !retired.understandFinal) {
-      alert("請勾選「我已了解並同意」才能送出");
+    const missing = tab === 'kitten' ? validateKitten() : validateRetired();
+    if (missing.length > 0) {
+      alert("請完成以下必填：\n" + missing.join('、'));
       return;
     }
     alert("✅ 已送出表單（尚未連接 Supabase）");
   };
 
   const submitReady = tab === 'kitten'
-    ? kitten.ackCommit
-    : retired.understandFinal;
+    ? validateKitten().length === 0
+    : validateRetired().length === 0;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 survey">
@@ -3323,14 +3371,15 @@ homeEnv: '', homeEnvOther: ''
           {/* 按鈕 */}
           <div className="grid grid-cols-2 gap-4 px-2 mt-8">
             <button className="py-4 bg-white/50 text-sub rounded-2xl font-bold shadow-sm" onClick={onBack}>返回</button>
-            <button
-              className={`py-4 rounded-2xl font-bold shadow-lg ${
-                submitReady ? 'bg-milk-deep text-white' : 'bg-gray-300 text-white'
-              }`}
-              onClick={handleSubmit}
-            >
-              送出
-            </button>
+<button
+  className={`py-4 rounded-2xl font-bold shadow-lg ${
+    submitReady ? 'bg-milk-deep text-white' : 'bg-gray-300 text-white'
+  }`}
+  onClick={handleSubmit}
+  disabled={!submitReady}
+>
+  送出
+</button>
           </div>
         </>
       )}
