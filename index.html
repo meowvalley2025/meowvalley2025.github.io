@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
@@ -484,24 +484,9 @@ const medicalHistoryOptions = [
   '血便','血尿','懷孕',
   '傳染性疾病','手術外傷未癒合','其他'
 ];
-    // 高風險判斷
-const isHighRisk = (() => {
-  const years = parseFloat(formData.ageYears);
-  const months = parseFloat(formData.ageMonths);
+// 高風險判斷（強制顯示）
+const isHighRisk = true;
 
-  const totalYears =
-    (isNaN(years) ? 0 : years) + (isNaN(months) ? 0 : months) / 12;
-
-  const hasAge = !isNaN(years) || !isNaN(months);
-  const ageRisk = hasAge && (totalYears <= 1 || totalYears >= 8);
-
-  const healthRisk = formData.healthHistory === '有';
-  const behaviorRisk =
-    Array.isArray(formData.behavior) &&
-    (formData.behavior.includes('有攻擊性') || formData.behavior.includes('會咬人'));
-
-  return ageRisk || healthRisk || behaviorRisk;
-})();
 // ✅ 搜尋舊客邏輯 (串接 Supabase)
 const handleSearchHistory = async () => {
   if (!formData.phone || formData.phone.length < 9) {
@@ -1159,18 +1144,34 @@ const dbData = {
               ></textarea>
             </div>
            
-            <div className="bg-orange-50/60 border border-orange-100/80 rounded-[24px] p-5 flex gap-4 items-start shadow-sm relative overflow-hidden group">
-              {/* 背景微裝飾 */}
-              <div className="absolute -right-2 -bottom-2 opacity-5 group-hover:scale-110 transition-transform"><i data-lucide="hospital" className="w-16 h-16 text-orange-900"></i></div>
-              <div className="mt-1 bg-white p-2.5 rounded-xl shadow-sm"><i data-lucide="hospital" className="w-5 h-5 text-orange-400"></i></div>
-              <div className="relative z-10">
-                <p className="text-[12px] font-black text-orange-800 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                  <span className="w-1 h-3 bg-orange-400 rounded-full"></span> 乙方特約醫院
-                </p>
-                <p className="font-bold text-sm text-orange-900 mb-0.5">新生動物醫院 (04-25257658)</p>
-                <p className="text-[11px] text-orange-800/60 leading-tight">台中市豐原區新生北路59號</p>
-              </div>
-            </div>
+{type === 'boarding' && (
+  <div className="form-group mb-4">
+    <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">
+      指定就醫醫院（若無則由乙方指定）
+    </label>
+    <input
+      type="text"
+      name="prefHospital"
+      placeholder="請填寫醫院名稱（選填）"
+      className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner"
+      onChange={handleChange}
+      value={formData.prefHospital}
+    />
+  </div>
+)}
+
+<div className="bg-orange-50/60 border border-orange-100/80 rounded-[24px] p-5 flex gap-4 items-start shadow-sm relative overflow-hidden group">
+  {/* 背景微裝飾 */}
+  <div className="absolute -right-2 -bottom-2 opacity-5 group-hover:scale-110 transition-transform"><i data-lucide="hospital" className="w-16 h-16 text-orange-900"></i></div>
+  <div className="mt-1 bg-white p-2.5 rounded-xl shadow-sm"><i data-lucide="hospital" className="w-5 h-5 text-orange-400"></i></div>
+  <div className="relative z-10">
+    <p className="text-[12px] font-black text-orange-800 uppercase tracking-widest mb-1.5 flex items-center gap-2">
+      <span className="w-1 h-3 bg-orange-400 rounded-full"></span> 乙方特約醫院
+    </p>
+    <p className="font-bold text-sm text-orange-900 mb-0.5">新生動物醫院 (04-25257658)</p>
+    <p className="text-[11px] text-orange-800/60 leading-tight">台中市豐原區新生北路59號</p>
+  </div>
+</div>
           </div>
         </div>
         {type === 'boarding' && (
@@ -1769,7 +1770,7 @@ const dbData = {
   <p className="font-bold text-orange-800 mb-2">註記：</p>
   <p>
     1. 本館不收有<span className="text-red-600 font-bold">傳染風險</span>貓隻
-    (如：打噴嚏、咳嗽、黴菌、貓瘟、貓白血、體內外寄生蟲感染…等)，
+    (如：打噴嚏、咳嗽、黴菌、貓瘟、貓白血、貓冠狀病毒、體內外寄生蟲感染…等)，
     若美容期間發現，則收取
     <span className="text-red-600 font-bold">3000元環境清潔費</span>，
     如經店家判斷太嚴重須由飼主
@@ -2111,45 +2112,43 @@ const dbData = {
               </span>
             </button>
 
-{isHighRisk && (
-  <div className={`flex items-center gap-3 p-4 rounded-2xl border-2 shadow-sm ${
+<div className={`flex items-center gap-3 p-4 rounded-2xl border-2 shadow-sm ${
+  formData.agreeHighRisk
+    ? 'bg-green-50 border-green-200'
+    : 'bg-red-50 border-red-200'
+}`}>
+  
+  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
     formData.agreeHighRisk
-      ? 'bg-green-50 border-green-200'
-      : 'bg-red-50 border-red-200'
+      ? 'bg-green-500 text-white'
+      : 'bg-red-100 text-red-500'
   }`}>
-    
-    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+    <i data-lucide="alert-triangle"></i>
+  </div>
+
+  <div className="flex-1">
+    <p className={`font-bold text-sm ${
+      formData.agreeHighRisk ? 'text-green-600' : 'text-red-600'
+    }`}>
+      {type === 'boarding' ? '【高風險】寄養服務風險告知' : '【高風險】美容服務風險告知'}
+    </p>
+    <p className="text-xs text-sub">
+      {formData.agreeHighRisk ? '已完成同意' : '請務必閱讀高風險條款'}
+    </p>
+  </div>
+
+  <button
+    type="button"
+    onClick={() => setActiveModal('highrisk')}
+    className={`px-4 py-2 rounded-full text-xs font-bold ${
       formData.agreeHighRisk
         ? 'bg-green-500 text-white'
-        : 'bg-red-100 text-red-500'
-    }`}>
-      <i data-lucide="alert-triangle"></i>
-    </div>
-
-    <div className="flex-1">
-      <p className={`font-bold text-sm ${
-        formData.agreeHighRisk ? 'text-green-600' : 'text-red-600'
-      }`}>
-        {type === 'boarding' ? '【高風險】寄養服務風險告知' : '【高風險】美容服務風險告知'}
-      </p>
-      <p className="text-xs text-sub">
-        {formData.agreeHighRisk ? '已完成同意' : '檢測到毛孩符合高風險條件，請務必閱讀'}
-      </p>
-    </div>
-
-    <button
-      type="button"
-      onClick={() => setActiveModal('highrisk')}
-      className={`px-4 py-2 rounded-full text-xs font-bold ${
-        formData.agreeHighRisk
-          ? 'bg-green-500 text-white'
-          : 'bg-red-500 text-white'
-      }`}
-    >
-      {formData.agreeHighRisk ? '已同意' : '務必詳閱'}
-    </button>
-  </div>
-)}
+        : 'bg-red-500 text-white'
+    }`}
+  >
+    {formData.agreeHighRisk ? '已同意' : '務必詳閱'}
+  </button>
+</div>
           </div>
         </div>
 
@@ -2370,7 +2369,7 @@ const dbData = {
                 <p className="text-red-900 font-bold mb-2 text-xs">⛔ 乙方因安全考量，以下情況恕不接待：</p>
                 <ul className="list-disc pl-4 space-y-1 text-red-800 mb-3 text-xs">
                   <li>未完成三劑疫苗之幼貓 / 接種疫苗一周內</li>
-                  <li>有傳染風險（打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血等）</li>
+                  <li>有傳染風險（打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血、貓冠狀病毒等）</li>
                   <li>嚴重疾病（心臟病、癲癇、<span className="font-black underline">腎臟泌尿系統疾病</span>、嚴重呼吸道疾病）</li>
                 </ul>
                 <div className="bg-white p-3 rounded border border-red-200 text-red-700 font-bold text-center text-sm shadow-sm">
@@ -2502,7 +2501,7 @@ const dbData = {
                 <p className="text-red-900 font-bold mb-2 text-xs">⛔ 乙方因安全考量，以下情況恕不接待：</p>
                 <ul className="list-disc pl-4 space-y-1 text-red-800 mb-3 text-xs">
                   <li>未完成三劑疫苗之幼貓 / 接種疫苗一周內</li>
-                  <li>有傳染風險（打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血等）</li>
+                  <li>有傳染風險（打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血、貓冠狀病毒等）</li>
                   <li>嚴重疾病（心臟病、癲癇、嚴重呼吸道疾病）</li>
                 </ul>
                 <div className="bg-white p-3 rounded border border-red-200 text-red-700 font-bold text-center text-sm shadow-sm">
@@ -4736,7 +4735,7 @@ input, textarea, select {
   <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js?v=6').then(function (reg) {
+    navigator.serviceWorker.register('/sw.js?v=7').then(function (reg) {
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
