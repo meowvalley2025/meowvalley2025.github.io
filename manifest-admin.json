@@ -1,7 +1,8 @@
 {
-  "name": "喵之谷 Meow Valley",
-  "short_name": "喵之谷",
-  "start_url": "/",
+  "name": "喵之谷 Admin",
+  "short_name": "喵谷Admin",
+  "start_url": "/admin.html",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f6efe7",
   "theme_color": "#b78963",

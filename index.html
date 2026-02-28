@@ -71,22 +71,41 @@ const compressImage = async (file, maxWidth = 1024, quality = 0.8) => {
 
 const uploadToStorage = async (file, folder = 'uploads') => {
   try {
-    const fileName = `${Date.now()}_${file.name}`;
-    const { data, error } = await supabase.storage
-      .from('meowvalley-uploads')
-      .upload(`${folder}/${fileName}`, file);
+    if (!file) return null;
 
-    if (error) throw error;
+    const mime = file.type || 'image/jpeg';
+    let ext = 'jpg';
+    if (mime.includes('png')) ext = 'png';
+    if (mime.includes('webp')) ext = 'webp';
+
+    const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const filePath = `${folder}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('meowvalley-uploads')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: mime
+      });
+
+    if (uploadError) throw uploadError;
 
     const { data: { publicUrl } } = supabase.storage
       .from('meowvalley-uploads')
-      .getPublicUrl(`${folder}/${fileName}`);
+      .getPublicUrl(filePath);
 
     return publicUrl;
   } catch (error) {
     console.error('上傳失敗:', error);
     throw error;
   }
+};
+
+// ✅ DataURL(Base64) 轉 File（給簽名使用）
+const dataUrlToFile = async (dataUrl, fileName = 'signature.png') => {
+  const blob = await fetch(dataUrl).then(res => res.blob());
+  return new File([blob], fileName, { type: blob.type || 'image/png' });
 };
   // --- 子元件 1：首頁畫面 ---
   const HomeView = ({ onNavigate }) => (
@@ -134,7 +153,7 @@ const uploadToStorage = async (file, folder = 'uploads') => {
           <a href="https://www.facebook.com/profile.php?id=61577336540564" target="_blank"><i data-lucide="facebook"></i></a>
           <a href="https://line.me/R/ti/p/@463mpova?oat_content=url&ts=02031808" target="_blank"><img src="line.png" className="line-img" /></a>
         </div>
-        <a class="addr" href="https://maps.app.goo.gl/m7wQdKVCuVQXgKgL6" target="_blank">
+<a className="addr" href="https://maps.app.goo.gl/m7wQdKVCuVQXgKgL6" target="_blank">
           <i data-lucide="map-pin"></i>
           臺中市豐原區水源路7巷192號
         </a>
@@ -349,7 +368,7 @@ const [formData, setFormData] = useState({
       ownerName: '', phone: '', idNumber: '', email: '', address: '', ownerSocial: '',
       emerName: '', emerRel: '', emerPhone: '',
       petName: '', breed: '', weight: '', ageYears: '', ageMonths: '', gender: '', neutered: '',
-      chip: '', chipNum: '', behavior: [],
+chip: '', chipNum: '', behavior: [], behaviorOther: '',
       healthHistory: '', healthHistoryItems: [], healthHistoryOther: '', healthNote: '',
       prefHospital: '',
       groomingCoat: '', groomingService: '', groomingAddons: [],
@@ -439,7 +458,11 @@ const toggleBoardingVaccine = (val) => {
     : [...current, val];
   setFormData({ ...formData, boardingVaccineTypes: next });
 };
-
+const bind = (name) => ({
+  name,
+  value: formData[name] ?? '',
+  onChange: handleChange
+});
 const toggleHomecareFreq = (val) => {
   const current = Array.isArray(formData.homecareFreqs) ? formData.homecareFreqs : [];
   const next = current.includes(val)
@@ -569,74 +592,154 @@ const handleSearchHistory = async () => {
   }
 };
 
-// ✅ 套用資料邏輯
+// ✅ 套用資料邏輯（加強版：支援 snake_case / camelCase + 住宿欄位完整導入）
 const handleApplyHistory = (record) => {
+  // 小工具：挑第一個有值的欄位
+  const pick = (...vals) => {
+    for (const v of vals) {
+      if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+    }
+    return '';
+  };
+
+  // 解析像「乾糧:一天兩次,罐頭:有,點心:無」
+  const parsePairText = (text) => {
+    const obj = {};
+    if (!text || typeof text !== 'string') return obj;
+    text.split(/[,\n，、]/).forEach(part => {
+      const seg = part.trim();
+      if (!seg) return;
+      const idx = seg.indexOf(':');
+      if (idx === -1) return;
+      const k = seg.slice(0, idx).trim();
+      const v = seg.slice(idx + 1).trim();
+      if (k) obj[k] = v;
+    });
+    return obj;
+  };
+
+  const dietMap = parsePairText(pick(record.diet_type, record.dietType, ''));
+  const feedMap = parsePairText(pick(record.feeding_plan, record.feedingPlan, ''));
+
   // 模式 1：僅填入飼主資料
   if (record.ownerOnly) {
     setFormData(prev => ({
       ...prev,
-      ownerName: record.owner_name,
-      phone: record.phone,
-      email: record.email,
-      address: record.address,
-      ownerId: record.owner_id,
-      emergencyName: record.emergency_name,
-      emergencyPhone: record.emergency_phone
+      ownerName: pick(record.owner_name, record.ownerName, prev.ownerName),
+      phone: pick(record.phone, prev.phone),
+      email: pick(record.email, prev.email),
+      address: pick(record.address, prev.address),
+      idNumber: pick(record.id_number, record.idNumber, prev.idNumber),
+      emerName: pick(record.emergency_name, record.emerName, prev.emerName),
+      emerRel: pick(record.emergency_rel, record.emerRel, prev.emerRel),
+      emerPhone: pick(record.emergency_phone, record.emerPhone, prev.emerPhone),
+      lineConfirmed: true
     }));
-    setLineConfirmed(true);
     setShowHistoryModal(false);
     alert("✅ 已填入飼主基本資料。");
     return;
   }
 
-  // 模式 2：導入寵物完整檔案資訊
+  // 模式 2：導入完整檔案（住宿欄位也完整）
   setFormData(prev => ({
     ...prev,
 
-    // A. 飼主檔案 (自動補全空缺)
-    ownerName: record.owner_name || prev.ownerName,
-    phone: record.phone || prev.phone,
-    email: record.email || prev.email,
-    address: record.address || prev.address,
-    ownerId: record.owner_id || prev.ownerId,
-    emergencyName: record.emergency_name || prev.emergencyName,
-    emergencyPhone: record.emergency_phone || prev.emergencyPhone,
+    // A. 飼主檔案
+    ownerName: pick(record.owner_name, record.ownerName, prev.ownerName),
+    phone: pick(record.phone, prev.phone),
+    email: pick(record.email, prev.email),
+    address: pick(record.address, prev.address),
+    idNumber: pick(record.id_number, record.idNumber, prev.idNumber),
+    emerName: pick(record.emergency_name, record.emerName, prev.emerName),
+    emerRel: pick(record.emergency_rel, record.emerRel, prev.emerRel),
+    emerPhone: pick(record.emergency_phone, record.emerPhone, prev.emerPhone),
 
-    // B. 寵物基本身分檔案
-    petName: record.pet_name,
-    breed: record.breed,
-    weight: record.weight,
-    ageYears: record.age ? Math.floor(record.age) : '',
-    ageMonths: record.age ? Math.round((record.age % 1) * 12) : '',
-    gender: record.sex === '公' ? '公' : record.sex === '母' ? '母' : '',
-    neutered: record.fix === '是' ? '是' : '否',
-    chip: record.chip_status === '有晶片' ? '有' : record.chip_status === '有晶片(號碼不詳)' ? '不詳' : '無',
-    chipNum: record.chip_id || '',
+    // B. 寵物基本
+    petName: pick(record.pet_name, record.petName, prev.petName),
+    breed: pick(record.breed, prev.breed),
+    weight: pick(record.weight, prev.weight),
+    ageYears: pick(record.age_years, record.ageYears, prev.ageYears),
+    ageMonths: pick(record.age_months, record.ageMonths, prev.ageMonths),
+    gender: pick(record.sex, record.gender, prev.gender),
+    neutered: pick(record.fix, record.neutered, prev.neutered),
+    chip: pick(record.chip_status, record.chip, prev.chip),
+    chipNum: pick(record.chip_id, record.chipNum, prev.chipNum),
 
-    // C. 醫療與性情檔案
-    behavior: (record.medical_history || []).length > 0 ? ['有病史'] : ['親近人'],
-    healthHistory: record.medical_status === '有' ? '有' : '無',
-    prefHospital: record.preferred_clinic || '',
+    // C. 醫療與性情
+    behavior: Array.isArray(record.behavior)
+      ? record.behavior
+      : (Array.isArray(record.medical_history) ? record.medical_history : (prev.behavior || [])),
+    behaviorOther: pick(record.behaviorOther, prev.behaviorOther),
+    healthHistory: pick(record.healthHistory, record.medical_status, prev.healthHistory),
+    healthHistoryItems: Array.isArray(record.healthHistoryItems) ? record.healthHistoryItems : (prev.healthHistoryItems || []),
+    healthHistoryOther: pick(record.healthHistoryOther, prev.healthHistoryOther),
+    healthNote: pick(record.healthNote, prev.healthNote),
+    prefHospital: pick(record.prefHospital, record.preferred_clinic, prev.prefHospital),
 
-    // D. 住宿專屬欄位 (如果是住宿紀錄)
+    // D1. 美容欄位
+    groomingService: pick(record.grooming_service, record.groomingService, prev.groomingService),
+    groomingCoat: pick(record.grooming_coat, record.groomingCoat, prev.groomingCoat),
+    groomingAddons: Array.isArray(record.groomingAddons)
+      ? record.groomingAddons
+      : (Array.isArray(record.grooming_addons) ? record.grooming_addons : (prev.groomingAddons || [])),
+
+    // D2. 住宿欄位（住宿紀錄才導入）
     ...(record.source === 'boarding' ? {
-      serviceType: 'boarding',
-      roomType: record.room_type || '',
-      dryFreq: record.diet_type?.includes('乾糧') ? '一天一次' : '',
-      dryAmount: record.feeding_plan || '',
-      wetHas: record.diet_type?.includes('罐頭') ? '有' : '無',
-      wetAmount: '',
-      snackHas: record.diet_type?.includes('點心') ? '有' : '無',
-      snackType: record.diet_type?.includes('肉泥') ? '肉泥' : '',
-      litterType: record.litter_type || ''
-    } : {})
+      serviceType: pick(record.serviceType, 'boarding'),
+      roomType: pick(record.roomType, record.room_type, prev.roomType),
+
+      // 飲食
+      dryFreq: pick(record.dryFreq, dietMap['乾糧'], prev.dryFreq),
+      dryAmount: pick(record.dryAmount, feedMap['乾糧'], prev.dryAmount),
+      wetHas: pick(record.wetHas, dietMap['罐頭'], prev.wetHas),
+      wetFreq: pick(record.wetFreq, prev.wetFreq),
+      wetAmount: pick(record.wetAmount, feedMap['濕食'], prev.wetAmount),
+      snackHas: pick(record.snackHas, dietMap['點心'], prev.snackHas),
+      snackType: pick(record.snackType, prev.snackType),
+      supplementHas: pick(record.supplementHas, prev.supplementHas),
+      supplementNote: pick(record.supplementNote, prev.supplementNote),
+      litterType: pick(record.litterType, record.litter_type, prev.litterType),
+      churuConsent: pick(record.churuConsent, prev.churuConsent),
+
+      // 到府（若過往有）
+      homecareFreqs: Array.isArray(record.homecareFreqs) ? record.homecareFreqs : (prev.homecareFreqs || []),
+      homecareFreqOther: pick(record.homecareFreqOther, prev.homecareFreqOther),
+      homecareTime1: pick(record.homecareTime1, prev.homecareTime1),
+      homecareTime2: pick(record.homecareTime2, prev.homecareTime2),
+      homecareTime3: pick(record.homecareTime3, prev.homecareTime3),
+      specialCareHas: pick(record.specialCareHas, prev.specialCareHas),
+      specialCareNote: pick(record.specialCareNote, record.special_care_note, prev.specialCareNote),
+
+      // 入住前健康與規範確認
+      boardingHealthOk: pick(record.boardingHealthOk, prev.boardingHealthOk),
+      boardingHasDisease: pick(record.boardingHasDisease, prev.boardingHasDisease),
+      boardingHealthDisease: pick(record.boardingHealthDisease, prev.boardingHealthDisease),
+      boardingSkinIssue: pick(record.boardingSkinIssue, prev.boardingSkinIssue),
+      boardingSkinNote: pick(record.boardingSkinNote, prev.boardingSkinNote),
+      boardingDewormed: pick(record.boardingDewormed, prev.boardingDewormed),
+      boardingDewormDate: pick(record.boardingDewormDate, prev.boardingDewormDate),
+      boardingInfectionAck: typeof record.boardingInfectionAck === 'boolean' ? record.boardingInfectionAck : prev.boardingInfectionAck,
+      boardingNailTrim: pick(record.boardingNailTrim, prev.boardingNailTrim),
+      boardingNailTrimDate: pick(record.boardingNailTrimDate, prev.boardingNailTrimDate),
+      boardingVaccinated: pick(record.boardingVaccinated, prev.boardingVaccinated),
+      boardingVaccineTypes: Array.isArray(record.boardingVaccineTypes) ? record.boardingVaccineTypes : (prev.boardingVaccineTypes || []),
+      boardingNeuteredConfirm: pick(record.boardingNeuteredConfirm, prev.boardingNeuteredConfirm),
+      boardingInHeat: pick(record.boardingInHeat, prev.boardingInHeat),
+      boardingPregnant: pick(record.boardingPregnant, prev.boardingPregnant),
+      boardingLateFeeAck: typeof record.boardingLateFeeAck === 'boolean' ? record.boardingLateFeeAck : prev.boardingLateFeeAck,
+      boardingNot24hAck: pick(record.boardingNot24hAck, prev.boardingNot24hAck),
+      boardingMedicalConsent: pick(record.boardingMedicalConsent, prev.boardingMedicalConsent)
+    } : {}),
+
+    lineConfirmed: true
   }));
 
-  setLineConfirmed(true);
+  setMissingBoarding([]);
   setIsSearching(false);
   setShowHistoryModal(false);
-  alert(`✅ 已帶入 ${record.pet_name} 的過往資料。`);
+  alert(`✅ 已帶入 ${pick(record.pet_name, record.petName, '毛孩')} 的過往資料。`);
 };
+
 // ✅ 入住前健康規範必填驗證
 const validateBoardingHealth = () => {
   const missing = [];
@@ -675,99 +778,143 @@ const validateBoardingHealth = () => {
 };
 const handleFinalSubmit = async () => {
   // ✅ 入住前健康規範必填驗證
-if (type === 'boarding' && formData.serviceType === 'boarding') {
-  const missing = validateBoardingHealth();
-  if (missing.length > 0) {
-    alert('⚠️ 入住前健康與規範確認尚未填寫完整：\n' + missing.join('、'));
+  if (type === 'boarding' && formData.serviceType === 'boarding') {
+    const missing = validateBoardingHealth();
+    if (missing.length > 0) {
+      alert('⚠️ 入住前健康與規範確認尚未填寫完整：\n' + missing.join('、'));
+      return;
+    }
+  }
+
+  // ✅ 基本必填檢查
+  if (!formData.ownerName || !formData.ownerName.trim()) {
+    alert('請填寫飼主姓名');
     return;
   }
-}
-  const submitDisabled = !formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || !sigImage;
-  if(!formData.ownerName || !sigImage) return alert("請填寫姓名並完成簽名");
-  
-if (!sigPad.current) return; 
-      setIsSubmitting(true);
-      
-      try {
-        const sigBlob = await new Promise(resolve => {
-          const canvas = sigPad.current.getCanvas();
-          canvas.toBlob(blob => resolve(blob), 'image/png');
-        });
+  if (!sigImage) {
+    alert('請先完成簽名');
+    return;
+  }
+  if (!formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk)) {
+    alert('請先完成條款與高風險同意');
+    return;
+  }
 
-        // ✅ 修正點：使用你原本的 uploadToStorage，並指定資料夾
-        const sigUrl = sigBlob ? await uploadToStorage(sigBlob, 'signatures') : null;
-        const vaccineUrl = formData.vaccineFile ? await uploadToStorage(formData.vaccineFile, 'vaccines') : null;
-        const dewormUrl = formData.dewormFile ? await uploadToStorage(formData.dewormFile, 'deworms') : null;
+  setIsSubmitting(true);
+  setUploadProgress(5);
 
-        // 4. 準備要儲存的資料 (資料庫格式)
-const dbData = {
-          // --- 飼主資料 ---
-          owner_name: formData.ownerName,
-          phone: formData.phone,
-          id_number: formData.idNumber,
-          email: formData.email,
-          address: formData.address,
-          emergency_name: formData.emerName,
-          emergency_rel: formData.emerRel,
-          emergency_phone: formData.emerPhone,
-          
-          // --- 寵物資料 ---
-          pet_name: formData.petName,
-          breed: formData.breed,
-          weight: formData.weight,
-          age_years: formData.ageYears,
-          age_months: formData.ageMonths,
-          sex: formData.gender,
-          fix: formData.neutered,
-          chip_status: formData.chip,
-          chip_id: formData.chipNum,
-          medical_history: formData.behavior,
-          medical_status: formData.healthHistory,
-          preferred_clinic: formData.prefHospital,
-    
-          // --- 檔案與系統 ---
-          sig_image: sigUrl,
-          sig_time: formData.sigTime,   // ✅ 簽署時間寫入 Supabase
-          vaccine_proof: vaccineUrl,
-          deworm_proof: dewormUrl,
-          submitted_at: new Date().toISOString(),
-          raw_data: formData,
-    
-          // --- 依照類型寫入不同欄位 ---
-          ...(type === 'boarding' ? {
-            service_type: 'boarding',
-            room_type: formData.roomType,
-            diet_type: [formData.dryFreq, formData.wetHas === '有' ? '罐頭' : '', formData.snackHas === '有' ? '點心' : ''].filter(Boolean).join(','),
-            feeding_plan: `乾糧:${formData.dryAmount}, 濕食:${formData.wetAmount}`,
-            litter_type: formData.litterType,
-            special_care_note: formData.specialCareNote
-          } : {
-            service_type: 'grooming',
-            grooming_coat: formData.groomingCoat,
-            grooming_service: formData.groomingService,
-            grooming_addons: formData.groomingAddons
-          })
-        };
-    
-        // 5. 儲存到資料庫
-        const tableName = type === 'boarding' ? 'boarding_bookings' : 'grooming_bookings';
-        const { error } = await supabase
-          .from(tableName)
-          .insert([dbData]);
+  try {
+    const submitTime = new Date().toISOString();
 
-        if (error) throw error;
-        
-        alert('預約單提交成功！');
-        // (後續清空表單或跳轉的邏輯...)
-        if(onBack) onBack();
+    // 1) 上傳簽名
+    setUploadProgress(20);
+    const sigFile = await dataUrlToFile(sigImage, `signature_${Date.now()}.png`);
+    const sigUrl = await uploadToStorage(sigFile, 'signatures');
 
-      } catch (error) {
-        console.error(error);
-        alert('提交失敗：' + error.message);
-      } finally {
-        setIsSubmitting(false);
-      }
+    // 2) 上傳疫苗證明（若有）
+    let vaccineUrl = null;
+    if (formData.vaccineProof instanceof File) {
+      setUploadProgress(40);
+      const compressedVaccine = await compressImage(formData.vaccineProof, 1280, 0.82);
+      vaccineUrl = await uploadToStorage(compressedVaccine, 'vaccines');
+    }
+
+    // 3) 上傳驅蟲證明（若有）
+    let dewormUrl = null;
+    if (formData.dewormProof instanceof File) {
+      setUploadProgress(55);
+      const compressedDeworm = await compressImage(formData.dewormProof, 1280, 0.82);
+      dewormUrl = await uploadToStorage(compressedDeworm, 'deworms');
+    }
+
+    // 4) 整理 raw_data（不能直接塞 File 物件）
+    const safeRawData = {
+      ...formData,
+      vaccineProof: vaccineUrl,
+      dewormProof: dewormUrl,
+      sigImage: sigUrl,
+      sigTime: formData.sigTime || submitTime,
+
+      // ✅ 補 snake_case，讓你舊客查詢比較穩
+      owner_name: formData.ownerName || '',
+      phone: formData.phone || '',
+      id_number: formData.idNumber || '',
+      email: formData.email || '',
+      address: formData.address || '',
+      emergency_name: formData.emerName || '',
+      emergency_rel: formData.emerRel || '',
+      emergency_phone: formData.emerPhone || '',
+      pet_name: formData.petName || '',
+      breed: formData.breed || '',
+      weight: formData.weight || '',
+      age_years: formData.ageYears || '',
+      age_months: formData.ageMonths || '',
+      sex: formData.gender || '',
+      fix: formData.neutered || '',
+      chip_status: formData.chip || '',
+      chip_id: formData.chipNum || '',
+      medical_status: formData.healthHistory || '',
+      medical_history: Array.isArray(formData.behavior) ? formData.behavior : [],
+      preferred_clinic: formData.prefHospital || '',
+      service_type: type === 'boarding' ? 'boarding' : 'grooming'
     };
+
+    // 5) 準備 DB payload（先用穩定欄位）
+    const dbData = {
+      service_type: type === 'boarding' ? 'boarding' : 'grooming',
+      owner_name: formData.ownerName || '',
+      phone: formData.phone || '',
+      pet_name: formData.petName || '',
+      sig_image: sigUrl,
+      sig_time: formData.sigTime || submitTime,
+      vaccine_proof: vaccineUrl,
+      deworm_proof: dewormUrl,
+      submitted_at: submitTime,
+      raw_data: safeRawData
+    };
+
+    // 若是美容，補美容欄位
+    if (type === 'grooming') {
+      dbData.grooming_coat = formData.groomingCoat || '';
+      dbData.grooming_service = formData.groomingService || '';
+      dbData.grooming_addons = Array.isArray(formData.groomingAddons) ? formData.groomingAddons : [];
+    }
+
+    // 若是住宿，補住宿欄位
+    if (type === 'boarding') {
+      dbData.room_type = formData.roomType || '';
+      dbData.diet_type = [
+        formData.dryFreq ? `乾糧:${formData.dryFreq}` : '',
+        formData.wetHas ? `罐頭:${formData.wetHas}` : '',
+        formData.snackHas ? `點心:${formData.snackHas}` : ''
+      ].filter(Boolean).join(',');
+      dbData.feeding_plan = `乾糧:${formData.dryAmount || ''}, 濕食:${formData.wetAmount || ''}`;
+      dbData.litter_type = formData.litterType || '';
+      dbData.special_care_note = formData.specialCareNote || '';
+    }
+
+    const tableName = type === 'boarding' ? 'boarding_bookings' : 'grooming_bookings';
+
+    setUploadProgress(75);
+
+    const { error } = await supabase
+      .from(tableName)
+      .insert([dbData]);
+
+    if (error) throw error;
+
+    setUploadProgress(100);
+    alert('預約單提交成功！');
+
+    if (onBack) onBack();
+  } catch (error) {
+    console.error('提交失敗詳情:', error);
+    alert('提交失敗：' + (error?.message || '未知錯誤，請稍後再試'));
+  } finally {
+    setIsSubmitting(false);
+    setUploadProgress(0);
+  }
+};
 
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
@@ -864,10 +1011,9 @@ const dbData = {
       <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">姓名 / Name<span className="text-red-500">*</span></label>
       <input 
         type="text" 
-        name="ownerName" 
+        {...bind('ownerName')}
         placeholder="填寫完整姓名" 
         className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
-        onChange={handleChange} 
       />
     </div>
 
@@ -877,11 +1023,9 @@ const dbData = {
       <div className="flex gap-2">
         <input 
           type="tel" 
-          name="phone" 
+          {...bind('phone')}
           placeholder="09xxxxxxxx" 
           className="flex-1 bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
-          onChange={handleChange} 
-          value={formData.phone}
         />
         <button 
           type="button"
@@ -906,10 +1050,9 @@ const dbData = {
 </label>
       <input 
         type="text" 
-        name="idNumber" 
+        {...bind('idNumber')}
         placeholder="請填寫身分證字號" 
         className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
-        onChange={handleChange} 
       />
     </div>
 
@@ -918,10 +1061,9 @@ const dbData = {
       <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電子郵件 / E-mail<span className="text-red-500">*</span></label>
       <input 
         type="email" 
-        name="email" 
+        {...bind('email')}
         placeholder="寄送契約副本用" 
         className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
-        onChange={handleChange} 
       />
     </div>
 
@@ -933,10 +1075,9 @@ const dbData = {
     </label>
     <input 
       type="text" 
-      name="ownerSocial" 
+      {...bind('ownerSocial')}
       placeholder="例如：@your_ig"
       className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
-      onChange={handleChange} 
     />
   </div>
 )}
@@ -946,10 +1087,9 @@ const dbData = {
       <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">通訊地址 / Address<span className="text-red-500">*</span></label>
       <input 
         type="text" 
-        name="address" 
+        {...bind('address')}
         placeholder="請填寫完整地址" 
         className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
-        onChange={handleChange} 
       />
     </div>
 
@@ -965,19 +1105,17 @@ const dbData = {
           <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人姓名<span className="text-red-500">*</span></label>
           <input 
             type="text" 
-            name="emerName" 
+            {...bind('emerName')}
             className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" 
-            onChange={handleChange} 
           />
         </div>
         <div className="form-group">
           <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">關係<span className="text-red-500">*</span></label>
           <input 
             type="text" 
-            name="emerRel" 
+            {...bind('emerRel')}
             placeholder="如: 配偶、家人" 
             className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" 
-            onChange={handleChange} 
           />
         </div>
       </div>
@@ -985,9 +1123,8 @@ const dbData = {
         <label className="text-[12px] font-bold text-sub ml-1 mb-1 block uppercase">聯絡人電話<span className="text-red-500">*</span></label>
         <input 
           type="tel" 
-          name="emerPhone" 
+          {...bind('emerPhone')}
           className="w-full bg-milk-soft/10 border border-milk-soft/50 rounded-lg p-3 text-xs outline-none" 
-          onChange={handleChange} 
         />
       </div>
     </div>
@@ -1008,21 +1145,21 @@ const dbData = {
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group">
                 <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">毛孩名字 / Name<span className="text-red-500">*</span></label>
-                <input type="text" name="petName"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
+                <input type="text" {...bind('petName')} className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" />
               </div>
               <div className="form-group">
                 <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">品種 / Breed<span className="text-red-500">*</span></label>
-                <input type="text" name="breed"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" onChange={handleChange} />
+                <input type="text" {...bind('breed')} className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" />
               </div>
               <div className="form-group">
                 <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">體重 / Weight (kg)<span className="text-red-500">*</span></label>
-                <input type="number" name="weight"  className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
+                <input type="number" {...bind('weight')} className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" />
               </div>
 <div className="form-group">
   <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">年齡 / Age<span className="text-red-500">*</span></label>
   <div className="grid grid-cols-2 gap-2">
-    <input type="number" name="ageYears" placeholder="歲" className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
-    <input type="number" name="ageMonths" placeholder="月" className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" onChange={handleChange} />
+    <input type="number" {...bind('ageYears')} placeholder="歲" className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" />
+    <input type="number" {...bind('ageMonths')} placeholder="月" className="w-full bg-white/50 border border-milk-soft rounded-2xl p-3.5 text-sm outline-none focus:border-milk-deep shadow-inner" />
   </div>
 </div>
             </div>
@@ -1060,7 +1197,7 @@ const dbData = {
                 ))}
               </div>
               {formData.chip === '有' && (
-                <input type="text" name="chipNum" placeholder="請輸入 15 位晶片號碼" className="w-full bg-white border border-milk-deep/30 rounded-xl p-3 text-sm outline-none animate-in zoom-in-95 duration-200" onChange={handleChange} />
+                <input type="text" {...bind('chipNum')} placeholder="請輸入 15 位晶片號碼" className="w-full bg-white border border-milk-deep/30 rounded-xl p-3 text-sm outline-none animate-in zoom-in-95 duration-200" />
               )}
             </div>
 
@@ -1077,7 +1214,7 @@ const dbData = {
                 ))}
               </div>
               {(Array.isArray(formData.behavior) && formData.behavior.includes('其他')) && (
-                <input type="text" name="behaviorOther" placeholder="請描述其他情況" className="w-full mt-2 bg-white border border-milk-soft rounded-xl p-3 text-sm outline-none" onChange={handleChange} />
+                <input type="text" {...bind('behaviorOther')} placeholder="請描述其他情況" className="w-full mt-2 bg-white border border-milk-soft rounded-xl p-3 text-sm outline-none" />
               )}
             </div>
 
@@ -1358,8 +1495,14 @@ const dbData = {
               </button>
             ))}
           </div>
-          <input type="text" placeholder="一次餵食量" className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            onChange={e=>setFormData({...formData,dryAmount:e.target.value})}/>
+          <input
+            type="text"
+            name="dryAmount"
+            placeholder="一次餵食量"
+            className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+            value={formData.dryAmount}
+            onChange={handleChange}
+          />
         </div>
 
         {/* 罐頭 */}
@@ -1376,10 +1519,22 @@ const dbData = {
           </div>
           {formData.wetHas === '有' && (
             <div className="grid grid-cols-2 gap-2 mt-2">
-              <input placeholder="頻率" className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-                onChange={e=>setFormData({...formData,wetFreq:e.target.value})}/>
-              <input placeholder="一次量" className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-                onChange={e=>setFormData({...formData,wetAmount:e.target.value})}/>
+              <input
+                type="text"
+                name="wetFreq"
+                placeholder="頻率"
+                className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+                value={formData.wetFreq}
+                onChange={handleChange}
+              />
+              <input
+                type="text"
+                name="wetAmount"
+                placeholder="一次量"
+                className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+                value={formData.wetAmount}
+                onChange={handleChange}
+              />
             </div>
           )}
         </div>
@@ -1422,8 +1577,14 @@ const dbData = {
             ))}
           </div>
           {formData.supplementHas === '有' && (
-            <input placeholder="品項 / 頻率 / 量" className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-              onChange={e=>setFormData({...formData,supplementNote:e.target.value})}/>
+            <input
+              type="text"
+              name="supplementNote"
+              placeholder="品項 / 頻率 / 量"
+              className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+              value={formData.supplementNote}
+              onChange={handleChange}
+            />
           )}
         </div>
 
@@ -1492,9 +1653,11 @@ const dbData = {
   {formData.homecareFreqs?.includes('其他') && (
     <input
       type="text"
+      name="homecareFreqOther"
       placeholder="請說明餵食習慣"
       className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-      onChange={e => setFormData({ ...formData, homecareFreqOther: e.target.value })}
+      value={formData.homecareFreqOther}
+      onChange={handleChange}
     />
   )}
 
@@ -1507,38 +1670,50 @@ const dbData = {
         <>
           <input
             type="time"
+            name="homecareTime1"
             className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            onChange={e => setFormData({ ...formData, homecareTime1: e.target.value })}
+            value={formData.homecareTime1}
+            onChange={handleChange}
           />
           <input
             type="time"
+            name="homecareTime2"
             className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            onChange={e => setFormData({ ...formData, homecareTime2: e.target.value })}
+            value={formData.homecareTime2}
+            onChange={handleChange}
           />
           <input
             type="time"
+            name="homecareTime3"
             className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            onChange={e => setFormData({ ...formData, homecareTime3: e.target.value })}
+            value={formData.homecareTime3}
+            onChange={handleChange}
           />
         </>
       ) : formData.homecareFreqs?.includes('一天兩次') ? (
         <>
           <input
             type="time"
+            name="homecareTime1"
             className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            onChange={e => setFormData({ ...formData, homecareTime1: e.target.value })}
+            value={formData.homecareTime1}
+            onChange={handleChange}
           />
           <input
             type="time"
+            name="homecareTime2"
             className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            onChange={e => setFormData({ ...formData, homecareTime2: e.target.value })}
+            value={formData.homecareTime2}
+            onChange={handleChange}
           />
         </>
       ) : (
         <input
           type="time"
+          name="homecareTime1"
           className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-          onChange={e => setFormData({ ...formData, homecareTime1: e.target.value })}
+          value={formData.homecareTime1}
+          onChange={handleChange}
         />
       )}
     </div>
@@ -1552,9 +1727,11 @@ const dbData = {
       </label>
       <input
         type="text"
+        name="dryAmount"
         placeholder="一次餵食量"
         className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-        onChange={e => setFormData({ ...formData, dryAmount: e.target.value })}
+        value={formData.dryAmount}
+        onChange={handleChange}
       />
     </div>
 
@@ -1575,9 +1752,11 @@ const dbData = {
       {formData.wetHas==='有' && (
         <input
           type="text"
+          name="wetAmount"
           placeholder="一次餵食量"
           className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-          onChange={e => setFormData({ ...formData, wetAmount: e.target.value })}
+          value={formData.wetAmount}
+          onChange={handleChange}
         />
       )}
     </div>
@@ -1626,9 +1805,11 @@ const dbData = {
       {formData.supplementHas === '有' && (
         <input
           type="text"
+          name="supplementNote"
           placeholder="品項 / 頻率 / 量"
           className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-          onChange={e => setFormData({ ...formData, supplementNote: e.target.value })}
+          value={formData.supplementNote}
+          onChange={handleChange}
         />
       )}
     </div>
@@ -1650,9 +1831,11 @@ const dbData = {
       {formData.specialCareHas === '有' && (
         <input
           type="text"
+          name="specialCareNote"
           placeholder="請填寫特殊照顧內容"
           className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-          onChange={e => setFormData({ ...formData, specialCareNote: e.target.value })}
+          value={formData.specialCareNote}
+          onChange={handleChange}
         />
       )}
     </div>
@@ -2112,12 +2295,15 @@ const dbData = {
               </span>
             </button>
 
-<div className={`flex items-center gap-3 p-4 rounded-2xl border-2 shadow-sm ${
-  formData.agreeHighRisk
-    ? 'bg-green-50 border-green-200'
-    : 'bg-red-50 border-red-200'
-}`}>
-  
+<button
+  type="button"
+  onClick={() => setActiveModal('highrisk')}
+  className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all text-left ${
+    formData.agreeHighRisk
+      ? 'bg-green-50 border-green-200'
+      : 'bg-red-50 border-red-200'
+  }`}
+>
   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
     formData.agreeHighRisk
       ? 'bg-green-500 text-white'
@@ -2137,9 +2323,7 @@ const dbData = {
     </p>
   </div>
 
-  <button
-    type="button"
-    onClick={() => setActiveModal('highrisk')}
+  <span
     className={`px-4 py-2 rounded-full text-xs font-bold ${
       formData.agreeHighRisk
         ? 'bg-green-500 text-white'
@@ -2147,8 +2331,8 @@ const dbData = {
     }`}
   >
     {formData.agreeHighRisk ? '已同意' : '務必詳閱'}
-  </button>
-</div>
+  </span>
+</button>
           </div>
         </div>
 
@@ -2786,6 +2970,7 @@ const MaineCoonForm = ({ onBack }) => {
   });
   const [step, setStep] = useState('select'); // ✅ 先選擇頁
   const [tab, setTab] = useState('kitten');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [kitten, setKitten] = useState({
     name: '', gender: '', age: '', contact: '',
@@ -2874,14 +3059,54 @@ homeEnv: '', homeEnvOther: ''
     return missing;
   };
 
-  const handleSubmit = () => {
-    const missing = tab === 'kitten' ? validateKitten() : validateRetired();
-    if (missing.length > 0) {
-      alert("請完成以下必填：\n" + missing.join('、'));
-      return;
-    }
-    alert("✅ 已送出表單（尚未連接 Supabase）");
-  };
+const handleSubmit = async () => {
+  const missing = tab === 'kitten' ? validateKitten() : validateRetired();
+  if (missing.length > 0) {
+    alert("請完成以下必填：\n" + missing.join('、'));
+    return;
+  }
+
+  setIsSubmitting(true);
+  try {
+    const submitTime = new Date().toISOString();
+
+    const payload = tab === 'kitten'
+      ? {
+          inquiry_type: 'kitten',
+          applicant_name: kitten.name || '',
+          contact: kitten.contact || '',
+          submitted_at: submitTime,
+          raw_data: {
+            ...kitten,
+            inquiry_type: 'kitten'
+          }
+        }
+      : {
+          inquiry_type: 'retired',
+          applicant_name: retired.name || '',
+          contact: retired.contact || '',
+          submitted_at: submitTime,
+          raw_data: {
+            ...retired,
+            inquiry_type: 'retired'
+          }
+        };
+
+    const { error } = await supabase
+      .from('mainecoon_inquiries')
+      .insert([payload]);
+
+    if (error) throw error;
+
+    alert("✅ 緬因貓詢問已送出，我們會盡快與您聯繫");
+    if (onBack) onBack();
+  } catch (err) {
+    console.error("緬因貓詢問送出失敗:", err);
+    alert("送出失敗：" + (err?.message || "未知錯誤"));
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const submitReady = tab === 'kitten'
     ? validateKitten().length === 0
@@ -3372,12 +3597,12 @@ homeEnv: '', homeEnvOther: ''
             <button className="py-4 bg-white/50 text-sub rounded-2xl font-bold shadow-sm" onClick={onBack}>返回</button>
 <button
   className={`py-4 rounded-2xl font-bold shadow-lg ${
-    submitReady ? 'bg-milk-deep text-white' : 'bg-gray-300 text-white'
+    submitReady && !isSubmitting ? 'bg-milk-deep text-white' : 'bg-gray-300 text-white'
   }`}
   onClick={handleSubmit}
-  disabled={!submitReady}
+  disabled={!submitReady || isSubmitting}
 >
-  送出
+  {isSubmitting ? '送出中...' : '送出'}
 </button>
           </div>
         </>
@@ -3390,6 +3615,9 @@ homeEnv: '', homeEnvOther: ''
 function App() {
     const getHash = () => window.location.hash.replace('#', '') || 'home';
     const [view, setView] = useState(getHash());
+
+    // ✅ Logo 雙擊判斷（手機/桌機都可用）
+    const lastLogoTapRef = useRef(0);
 
     useEffect(() => {
       const handlePopState = () => setView(getHash());
@@ -3404,6 +3632,23 @@ function App() {
     });
 
     const navigateTo = (v) => { window.location.hash = v; };
+
+    // ✅ 單擊：回首頁；雙擊：跳 admin.html
+    const handleBrandClick = (e) => {
+      e.preventDefault();
+      const now = Date.now();
+      const gap = now - lastLogoTapRef.current;
+
+      // 320ms 內算雙擊
+      if (gap > 0 && gap < 320) {
+        lastLogoTapRef.current = 0;
+        window.location.href = './admin.html';
+        return;
+      }
+
+      lastLogoTapRef.current = now;
+      navigateTo('home');
+    };
 
     return (
       <div className="min-h-screen">
@@ -3532,16 +3777,24 @@ function App() {
       justify-content: space-between;
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      font-family: "JasonHandwriting", sans-serif;
-      font-weight: 400;
-      letter-spacing: 0.25em;
-      color: var(--ink);
-    }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-family: "JasonHandwriting", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.25em;
+  color: var(--ink);
+
+  /* ✅ button reset + 手機觸控優化 */
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  touch-action: manipulation;
+  user-select: none;
+}
 
     .brand img {
       width: 28px;
@@ -4735,7 +4988,7 @@ input, textarea, select {
   <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js?v=7').then(function (reg) {
+    navigator.serviceWorker.register('/sw.js?v=8').then(function (reg) {
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
