@@ -108,15 +108,20 @@ const dataUrlToFile = async (dataUrl, fileName = 'signature.png') => {
   return new File([blob], fileName, { type: blob.type || 'image/png' });
 };
   // --- 子元件 1：首頁畫面 ---
-  const HomeView = ({ onNavigate }) => (
-    <section className="glass-panel animate-in fade-in duration-500">
-      <div className="hero">
-        <div className="logo-wrap">
-          <img src="logo.png" alt="Logo" />
-        </div>
-        <h1 className="title">喵之谷</h1>
-        <p className="handwrite font-en opacity-60">Meow Valley</p>
-      </div>
+const HomeView = ({ onNavigate, onHeroLogoTap }) => (
+  <section className="glass-panel animate-in fade-in duration-500">
+    <div className="hero">
+      <button
+        type="button"
+        className="logo-wrap"
+        onClick={onHeroLogoTap}
+        aria-label="首頁主 Logo"
+      >
+        <img src="logo.png" alt="Logo" />
+      </button>
+      <h1 className="title">喵之谷</h1>
+      <p className="handwrite font-en opacity-60">Meow Valley</p>
+    </div>
 
       <div className="cards">
         <button className="card grooming" onClick={() => onNavigate('grooming')}>
@@ -3613,11 +3618,11 @@ const handleSubmit = async () => {
 
   // --- 主程式：控制中心 ---
 function App() {
-    const getHash = () => window.location.hash.replace('#', '') || 'home';
-    const [view, setView] = useState(getHash());
+const getHash = () => window.location.hash.replace('#', '') || 'home';
+const [view, setView] = useState(getHash());
 
-    // ✅ Logo 雙擊判斷（手機/桌機都可用）
-    const lastLogoTapRef = useRef(0);
+// ✅ 首頁大 Logo 雙擊判斷（手機/桌機都可用）
+const lastHeroLogoTapRef = useRef(0);
 
     useEffect(() => {
       const handlePopState = () => setView(getHash());
@@ -3631,24 +3636,30 @@ function App() {
       lucide.createIcons();
     });
 
-    const navigateTo = (v) => { window.location.hash = v; };
+const navigateTo = (v) => { window.location.hash = v; };
 
-    // ✅ 單擊：回首頁；雙擊：跳 admin.html
-    const handleBrandClick = (e) => {
-      e.preventDefault();
-      const now = Date.now();
-      const gap = now - lastLogoTapRef.current;
+// ✅ 跳轉 admin（PWA/手機可用）
+const goAdminPage = () => {
+  // PWA/手機端較穩定：用完整 URL 跳轉
+  const target = new URL('/admin.html', window.location.origin).toString();
+  window.location.href = target;
+};
 
-      // 320ms 內算雙擊
-      if (gap > 0 && gap < 320) {
-        lastLogoTapRef.current = 0;
-        window.location.href = './admin.html';
-        return;
-      }
+// ✅ 首頁大 Logo：320ms 內連點兩下就進 admin
+const handleHeroLogoTap = (e) => {
+  if (e) e.preventDefault();
 
-      lastLogoTapRef.current = now;
-      navigateTo('home');
-    };
+  const now = Date.now();
+  const gap = now - lastHeroLogoTapRef.current;
+
+  if (gap > 0 && gap < 320) {
+    lastHeroLogoTapRef.current = 0;
+    goAdminPage();
+    return;
+  }
+
+  lastHeroLogoTapRef.current = now;
+};
 
     return (
       <div className="min-h-screen">
@@ -3662,7 +3673,7 @@ function App() {
           </div>
         </nav>
 <main className="wrap">
-  {view === 'home' && <HomeView onNavigate={navigateTo} />}
+{view === 'home' && <HomeView onNavigate={navigateTo} onHeroLogoTap={handleHeroLogoTap} />}
   {view === 'grooming' && <ContractForm title="純貓美容契約" type="grooming" onBack={() => navigateTo('home')} />}
   {view === 'boarding' && <ContractForm title="純貓住宿契約" type="boarding" onBack={() => navigateTo('home')} />}
   {view === 'mainecoon' && <MaineCoonForm onBack={() => navigateTo('home')} />}
@@ -3857,16 +3868,21 @@ function App() {
       z-index: 2;
     }
 
-    .logo-wrap {
-      width: 150px;
-      height: 150px;
-      margin: 0 auto 18px;
-      display: grid;
-      place-items: center;
-      background: transparent;
-      border: none;
-      box-shadow: none;
-    }
+.logo-wrap {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
+}
 
     .logo-wrap img {
       width: 150px;
