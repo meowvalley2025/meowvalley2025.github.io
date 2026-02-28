@@ -5004,7 +5004,7 @@ input, textarea, select {
   <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js?v=8').then(function (reg) {
+    navigator.serviceWorker.register('/sw.js?v=9').then(function (reg) {
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
