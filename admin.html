@@ -585,6 +585,105 @@
   font-weight:900;
   margin-top:4px;
 }
+/* ===== Internal Note ===== */
+.mv-note-card{
+  border:1px solid #e6d8c8;
+  border-radius:14px;
+  background:#fffaf5;
+  padding:10px;
+  margin-bottom:12px;
+}
+.mv-note-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:8px;
+}
+.mv-note-title{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:13px;
+  font-weight:900;
+  color:#5b4a3c;
+}
+.mv-note-badge{
+  font-size:10px;
+  font-weight:900;
+  border:1px solid #e3d4c3;
+  border-radius:999px;
+  background:#efe1d1;
+  color:#6b5747;
+  padding:2px 8px;
+}
+.mv-note-tip{
+  font-size:10px;
+  font-weight:800;
+  color:#9a8777;
+}
+.mv-note-input{
+  width:100%;
+  min-height:84px;
+  border:1px solid #e7d9cb;
+  border-radius:12px;
+  background:#fff;
+  padding:10px 11px;
+  font-size:13px;
+  color:#3d332b;
+  resize:vertical;
+  outline:none;
+}
+.mv-note-input:focus{
+  border-color:#b78963;
+  box-shadow:0 0 0 3px rgba(183,137,99,.12);
+}
+.mv-note-actions{
+  margin-top:8px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+}
+.mv-note-save{
+  border:1px solid #d8c3ad;
+  background:#fff;
+  color:#5d4b3c;
+  font-size:12px;
+  font-weight:900;
+  border-radius:10px;
+  padding:6px 10px;
+}
+.mv-note-msg{
+  font-size:12px;
+  font-weight:900;
+  color:#3f8a58;
+}
+.mv-note-err{
+  font-size:12px;
+  font-weight:900;
+  color:#c75252;
+}
+
+/* list 卡片備註提示 */
+.mv-record-note-chip{
+  font-size:10px;
+  font-weight:900;
+  border:1px solid #ddd0fe;
+  border-radius:999px;
+  background:#ede9fe;
+  color:#6d28d9;
+  padding:2px 8px;
+}
+.mv-record-note-preview{
+  margin-top:6px;
+  font-size:12px;
+  font-weight:800;
+  color:#6d28d9;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 </style>
 </head>
 <body>
@@ -765,7 +864,7 @@ const isDisplayable = (v) => {
       );
     }
 
-function DetailModal({ row, canDelete, onDelete, onClose }) {
+function DetailModal({ row, canDelete, canEditNote, onSaveNote, onDelete, onClose }) {
   if (!row) return null;
   const raw = row.raw || {};
 
@@ -806,8 +905,31 @@ const detailTitle =
 
 const headerTypeChip = isDisplayable(row.subtype) ? row.subtype : typeLabel(row.type);
 
-const Row = ({ label, value }) => {
-  if (!isDisplayable(value)) return null;
+const [noteDraft, setNoteDraft] = useState(row.internal_note || "");
+const [noteSaving, setNoteSaving] = useState(false);
+const [noteMsg, setNoteMsg] = useState("");
+const [noteErr, setNoteErr] = useState("");
+
+useEffect(() => {
+  setNoteDraft(row?.internal_note || "");
+  setNoteMsg("");
+  setNoteErr("");
+}, [row?.id, row?.internal_note]);
+
+const handleSaveNote = async () => {
+  if (!row || !onSaveNote || !canEditNote) return;
+  setNoteMsg("");
+  setNoteErr("");
+  setNoteSaving(true);
+
+  const ok = await onSaveNote(row, noteDraft);
+
+  setNoteSaving(false);
+  if (ok) setNoteMsg("備註已儲存");
+  else setNoteErr("儲存失敗，請稍後再試");
+};
+
+const Row = ({ label, value }) => {  if (!isDisplayable(value)) return null;
   return (
     <div className="mv-dm-row">
       <div className="mv-dm-label">{label}</div>
@@ -854,8 +976,39 @@ const Row = ({ label, value }) => {
           </div>
         </div>
 
-        <div className="mv-dm-body">
-          {row.type !== "maine" && (
+<div className="mv-dm-body">
+  <div className="mv-note-card">
+    <div className="mv-note-head">
+      <div className="mv-note-title">
+        <Icon name="notebook-pen" size={14} />
+        <span>店家備註</span>
+        <span className="mv-note-badge">僅店家可見</span>
+      </div>
+      <div className="mv-note-tip">
+        {canEditNote ? "可編輯並儲存" : "無編輯權限"}
+      </div>
+    </div>
+
+    <textarea
+      className="mv-note-input"
+      placeholder="尚未填寫"
+      value={noteDraft}
+      onChange={(e) => setNoteDraft(e.target.value)}
+      disabled={!canEditNote || noteSaving}
+    />
+
+    <div className="mv-note-actions">
+      {noteErr && <div className="mv-note-err">{noteErr}</div>}
+      {noteMsg && <div className="mv-note-msg">{noteMsg}</div>}
+      {canEditNote && (
+        <button className="mv-note-save" onClick={handleSaveNote} disabled={noteSaving}>
+          {noteSaving ? "儲存中..." : "儲存備註"}
+        </button>
+      )}
+    </div>
+  </div>
+
+  {row.type !== "maine" && (
             <div className="mv-dm-grid">
               <Block title="飼主與聯絡" icon="user">
                 <Row label="飼主 / 申請人" value={row.owner_name} />
@@ -1157,9 +1310,10 @@ const fetchAll = async () => {
       sig_image: r.sig_image || raw.sigImage || "",
       sig_time: r.sig_time || raw.sigTime || "",
       vaccine_proof: r.vaccine_proof || raw.vaccineProof || "",
-      deworm_proof: r.deworm_proof || raw.dewormProof || "",
+deworm_proof: r.deworm_proof || raw.dewormProof || "",
+internal_note: r.internal_note || "",
 
-      raw
+raw
     });
   });
 
@@ -1262,9 +1416,10 @@ const fetchAll = async () => {
       sig_image: r.sig_image || raw.sigImage || "",
       sig_time: r.sig_time || raw.sigTime || "",
       vaccine_proof: r.vaccine_proof || raw.vaccineProof || "",
-      deworm_proof: r.deworm_proof || raw.dewormProof || "",
+deworm_proof: r.deworm_proof || raw.dewormProof || "",
+internal_note: r.internal_note || "",
 
-      raw
+raw
     });
   });
 
@@ -1283,8 +1438,9 @@ const fetchAll = async () => {
       sig_image: "",
       sig_time: "",
       vaccine_proof: "",
-      deworm_proof: "",
-      raw
+deworm_proof: "",
+internal_note: r.internal_note || "",
+raw
     });
   });
 
@@ -1317,6 +1473,33 @@ const fetchAll = async () => {
         setSelected(null);
         fetchAll();
       };
+      const handleSaveInternalNote = async (row, noteText) => {
+  const { error } = await supabase
+    .from(row.table)
+    .update({ internal_note: noteText })
+    .eq("id", row.id);
+
+  if (error) {
+    alert("備註儲存失敗：" + error.message);
+    return false;
+  }
+
+  setAllRows(prev =>
+    prev.map(item =>
+      item.table === row.table && item.id === row.id
+        ? { ...item, internal_note: noteText }
+        : item
+    )
+  );
+
+  setSelected(prev =>
+    prev && prev.table === row.table && prev.id === row.id
+      ? { ...prev, internal_note: noteText }
+      : prev
+  );
+
+  return true;
+};
 const openPwdModal = () => {
   if (!isAdmin) return; // 員工不可開
   setPwdErr("");
@@ -1502,6 +1685,8 @@ const handleChangePassword = async (e) => {
   const showSubTag = r.type === "maine" && !!r.subtype;
 const mainTitle = r.pet_name || r.owner_name || "未填姓名";
 const ownerText = r.owner_name || "-";
+const hasNote = isDisplayable(r.internal_note);
+const notePreview = hasNote ? String(r.internal_note).replace(/\s+/g, " ").trim() : "";
 
   return (
     <button
@@ -1511,10 +1696,11 @@ const ownerText = r.owner_name || "-";
     >
       <div className="mv-record-head">
         <div className="min-w-0">
-          <div className="mv-record-meta">
-            <span className={typePillClass(r.type)}>{typeLabel(r.type)}</span>
-            {showSubTag && <span className="mv-subtag">{r.subtype}</span>}
-          </div>
+<div className="mv-record-meta">
+  <span className={typePillClass(r.type)}>{typeLabel(r.type)}</span>
+  {showSubTag && <span className="mv-subtag">{r.subtype}</span>}
+  {hasNote && <span className="mv-record-note-chip">店家備註</span>}
+</div>
 
 <div className="mv-record-name truncate">{mainTitle}</div>
         </div>
@@ -1531,6 +1717,10 @@ const ownerText = r.owner_name || "-";
   </div>
   <div className="text-mv-sub"><Icon name="chevron-right" size={16}/></div>
 </div>
+
+{hasNote && (
+  <div className="mv-record-note-preview">📝 {notePreview}</div>
+)}
     </button>
   );
 })}
@@ -1538,12 +1728,14 @@ const ownerText = r.owner_name || "-";
             )}
           </main>
 
-          <DetailModal
-            row={selected}
-            canDelete={isAdmin}
-            onDelete={handleDelete}
-            onClose={()=>setSelected(null)}
-          />
+<DetailModal
+  row={selected}
+  canDelete={isAdmin}
+  canEditNote={true}
+  onSaveNote={handleSaveInternalNote}
+  onDelete={handleDelete}
+  onClose={()=>setSelected(null)}
+/>
           {showPwdModal && (
   <div className="mv-pwd-mask" onClick={closePwdModal}>
     <div className="mv-pwd-panel" onClick={(e)=>e.stopPropagation()}>
