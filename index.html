@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
@@ -106,6 +106,677 @@ const uploadToStorage = async (file, folder = 'uploads') => {
 const dataUrlToFile = async (dataUrl, fileName = 'signature.png') => {
   const blob = await fetch(dataUrl).then(res => res.blob());
   return new File([blob], fileName, { type: blob.type || 'image/png' });
+};
+// ====== Email 設定與模板工具（喵之谷） ======
+const STORE_EMAIL = "meow.valley2025@gmail.com";
+const BRAND_LOGO_URL = "https://iqhalbrbivruokxxgycw.supabase.co/storage/v1/object/public/logo/logo.png";
+
+const toText = (v) => {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'boolean') return v ? '是' : '否';
+  if (Array.isArray(v)) return v.length ? v.join('、') : '—';
+  return String(v);
+};
+const formatAgeText = (years, months) => {
+  const y = years === null || years === undefined || years === '' ? '' : String(years).trim();
+  const m = months === null || months === undefined || months === '' ? '' : String(months).trim();
+
+  if (!y && !m) return '—';
+  if (y && m) return `${y} 歲 ${m} 個月`;
+  if (y) return `${y} 歲`;
+  return `${m} 個月`;
+};
+const emailRow = (label, value) => `
+  <tr>
+    <td style="padding:10px 12px;border:1px solid #f0e3d7;background:#fcf8f4;color:#7b6656;width:34%;font-weight:700;vertical-align:top;">
+      ${escHtml(label)}
+    </td>
+    <td style="padding:10px 12px;border:1px solid #f0e3d7;color:#4a3f36;vertical-align:top;line-height:1.7;">
+      ${escHtml(toText(value))}
+    </td>
+  </tr>
+`;
+
+const wrapMeowEmail = ({ title, subtitle = '', contentHtml }) => `
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+</head>
+<body style="margin:0;padding:0;background:#f6efe7;font-family:'Noto Sans TC',Arial,sans-serif;color:#4a3f36;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6efe7;padding:24px 10px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:760px;background:#fff;border:1px solid #ead6c3;border-radius:18px;overflow:hidden;">
+          <tr>
+            <td style="background:linear-gradient(135deg,#f8efe6,#f3e3d4);padding:28px 22px;text-align:center;">
+              <img src="${BRAND_LOGO_URL}" alt="喵之谷" style="width:88px;height:88px;object-fit:contain;display:block;margin:0 auto 12px;" />
+              <h1 style="margin:0;color:#8c6b5d;font-size:24px;">${escHtml(title)}</h1>
+              ${subtitle ? `<p style="margin:8px 0 0;color:#9b8473;font-size:13px;">${escHtml(subtitle)}</p>` : ''}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:22px;">
+              ${contentHtml}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:14px 22px;background:#fffaf5;border-top:1px solid #f0e3d7;color:#8a7f74;font-size:12px;line-height:1.8;">
+              此信件由 <b>喵之谷 Meow Valley</b> 系統自動寄出。<br/>
+              若有任何問題，請聯繫店家（喵之谷）
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
+const emailSection = (title, rowsHtml) => `
+  <div style="padding:14px;border:1px solid #ead6c3;border-radius:12px;background:#fff;margin-bottom:14px;">
+    <h3 style="margin:0 0 8px;color:#b78963;">${escHtml(title)}</h3>
+    <table style="width:100%;border-collapse:collapse;">${rowsHtml}</table>
+  </div>
+`;
+const escHtml = (v = '') =>
+  String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const formatDateTime = (iso) => {
+  try {
+    return new Date(iso).toLocaleString('zh-TW', { hour12: false });
+  } catch {
+    return String(iso || '');
+  }
+};
+
+const valueToText = (val) => {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'boolean') return val ? '是' : '否';
+  if (Array.isArray(val)) return val.join('、');
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val);
+};
+
+const flattenObjectRows = (obj, parentKey = '') => {
+  const rows = [];
+  if (!obj || typeof obj !== 'object') return rows;
+
+  Object.keys(obj).forEach((key) => {
+    const fullKey = parentKey ? `${parentKey}.${key}` : key;
+    const value = obj[key];
+
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      rows.push(...flattenObjectRows(value, fullKey));
+    } else {
+      rows.push({ key: fullKey, value: valueToText(value) });
+    }
+  });
+
+  return rows;
+};
+const joinFilled = (...vals) => {
+  const list = vals
+    .map(v => {
+      if (Array.isArray(v)) return v.join('、');
+      return (v === null || v === undefined) ? '' : String(v).trim();
+    })
+    .filter(Boolean);
+  return list.length ? list.join('｜') : '—';
+};
+
+const buildAttachmentHtml = ({ type, sigUrl, vaccineUrl, dewormUrl, sigTime }) => {
+  const showProofLinks = type === 'boarding';
+
+  return `
+    <div style="margin-top:16px;padding:14px;border:1px solid #ead6c3;border-radius:12px;background:#fff;">
+      <div style="margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:#7b6656;margin-bottom:6px;">簽名檔</div>
+        ${
+          sigUrl
+            ? `
+              <div style="border:1px solid #f0e3d7;border-radius:10px;padding:10px;background:#fffaf6;text-align:center;">
+                <img src="${escHtml(sigUrl)}" alt="簽名" style="max-width:100%;max-height:180px;object-fit:contain;display:block;margin:0 auto;" />
+              </div>
+              <div style="margin-top:6px;font-size:12px;color:#8a7f74;">
+                簽署時間：${escHtml(sigTime ? formatDateTime(sigTime) : '—')}
+              </div>
+            `
+            : `<div style="font-size:13px;color:#8a7f74;">未提供</div>`
+        }
+      </div>
+
+      ${
+        showProofLinks
+          ? `
+            <div style="font-size:13px;line-height:1.9;">
+              <div>疫苗證明：${
+                vaccineUrl
+                  ? `<a href="${escHtml(vaccineUrl)}" target="_blank" style="color:#b78963;font-weight:700;">點我查看疫苗證明</a>`
+                  : '未提供'
+              }</div>
+              <div>驅蟲證明：${
+                dewormUrl
+                  ? `<a href="${escHtml(dewormUrl)}" target="_blank" style="color:#b78963;font-weight:700;">點我查看驅蟲證明</a>`
+                  : '未提供'
+              }</div>
+            </div>
+          `
+          : ``
+      }
+    </div>
+  `;
+};
+
+const buildBoardingRows = (serviceType, formData) => {
+  const serviceLabel = getServiceLabel('boarding', serviceType);
+
+  if (serviceType === 'homecare') {
+    return [
+      emailRow('服務類型', serviceLabel),
+      emailRow('到府餵食頻率', joinFilled(formData.homecareFreqs, formData.homecareFreqOther)),
+      emailRow('到府時間', joinFilled(formData.homecareTime1, formData.homecareTime2, formData.homecareTime3)),
+      emailRow('乾糧', formData.dryAmount),
+      emailRow('罐頭', joinFilled(formData.wetHas, formData.wetAmount)),
+      emailRow('點心', joinFilled(formData.snackHas, formData.snackType)),
+      emailRow('保健品', joinFilled(formData.supplementHas, formData.supplementNote)),
+      emailRow('特殊照顧', joinFilled(formData.specialCareHas, formData.specialCareNote)),
+      emailRow('指定就醫醫院', formData.prefHospital)
+    ].join('');
+  }
+
+  // boarding / daycare 統一列出住宿重點
+  return [
+    emailRow('服務類型', serviceLabel),
+    emailRow('房型', formData.roomType),
+    emailRow('入住日期', `${toText(formData.boardingStartDate)} ～ ${toText(formData.boardingEndDate)}`),
+    emailRow('入住時間', formData.boardingCheckinTime),
+    emailRow('乾糧頻率', formData.dryFreq),
+    emailRow('乾糧一次量', formData.dryAmount),
+    emailRow('罐頭', joinFilled(formData.wetHas, formData.wetFreq, formData.wetAmount)),
+    emailRow('點心', joinFilled(formData.snackHas, formData.snackType)),
+    emailRow('保健品', joinFilled(formData.supplementHas, formData.supplementNote)),
+    emailRow('貓砂類型', formData.litterType),
+    emailRow('肉泥授權', formData.churuConsent),
+    emailRow('指定就醫醫院', formData.prefHospital)
+  ].join('');
+};
+
+const buildBoardingHealthRows = (formData) => {
+  return [
+    emailRow('健康狀況良好', formData.boardingHealthOk),
+    emailRow('是否有疾病', formData.boardingHasDisease),
+    emailRow('疾病補充', formData.boardingHealthDisease),
+    emailRow('是否有皮膚問題', formData.boardingSkinIssue),
+    emailRow('皮膚問題補充', formData.boardingSkinNote),
+    emailRow('是否完成驅蟲除蚤', formData.boardingDewormed),
+    emailRow('近期驅蟲時間', formData.boardingDewormDate),
+    emailRow('傳染風險清潔費同意', formData.boardingInfectionAck),
+    emailRow('是否剪指甲', formData.boardingNailTrim),
+    emailRow('近期剪指甲時間', formData.boardingNailTrimDate),
+    emailRow('一年內是否施打疫苗', formData.boardingVaccinated),
+    emailRow('疫苗種類', formData.boardingVaccineTypes),
+    emailRow('是否結紮', formData.boardingNeuteredConfirm),
+    emailRow('是否發情中', formData.boardingInHeat),
+    emailRow('是否懷孕', formData.boardingPregnant),
+    emailRow('延時費用同意', formData.boardingLateFeeAck),
+    emailRow('已理解非24小時旅館', formData.boardingNot24hAck),
+    emailRow('緊急就醫同意', formData.boardingMedicalConsent)
+  ].join('');
+};
+
+const buildContractEmailHtml = ({
+  type,
+  serviceType,
+  formData,
+  sigUrl,
+  vaccineUrl,
+  dewormUrl,
+  submitTime
+}) => {
+  const serviceLabel = getServiceLabel(type, serviceType);
+  const signedAt = formData?.sigTime || submitTime;
+
+  const ownerRows = [
+    emailRow('飼主姓名', formData.ownerName),
+    emailRow('聯絡電話', formData.phone),
+    emailRow('身分證字號', formData.idNumber),
+    emailRow('電子信箱', formData.email),
+    emailRow('IG / 社群帳號', formData.ownerSocial),
+    emailRow('通訊地址', formData.address),
+    emailRow('緊急聯絡人', `${toText(formData.emerName)}（${toText(formData.emerRel)}）`),
+    emailRow('緊急聯絡電話', formData.emerPhone),
+    emailRow('填表時間', formatDateTime(submitTime))
+  ].join('');
+
+  const petRows = [
+    emailRow('毛孩名字', formData.petName),
+    emailRow('品種', formData.breed),
+    emailRow('體重', formData.weight ? `${formData.weight} kg` : ''),
+    emailRow('年齡', formatAgeText(formData.ageYears, formData.ageMonths)),
+    emailRow('性別', formData.gender),
+    emailRow('結紮', formData.neutered),
+    emailRow('晶片', formData.chip === '有' ? `有（${toText(formData.chipNum)}）` : formData.chip),
+    emailRow('性情評估', joinFilled(formData.behavior, formData.behaviorOther)),
+    emailRow('過往病史', formData.healthHistory),
+    emailRow('病史補充', joinFilled(formData.healthHistoryItems, formData.healthHistoryOther, formData.healthNote))
+  ].join('');
+
+  const serviceRows = type === 'grooming'
+    ? [
+        emailRow('服務類型', formData.groomingService),
+        emailRow('毛長類型', formData.groomingCoat),
+        emailRow('加購項目', formData.groomingAddons)
+      ].join('')
+    : buildBoardingRows(serviceType, formData);
+
+  const attachHtml = buildAttachmentHtml({
+    type,
+    sigUrl,
+    vaccineUrl,
+    dewormUrl,
+    sigTime: signedAt
+  });
+
+  const contentHtml = `
+    ${emailSection('飼主資料', ownerRows)}
+    ${emailSection('毛孩資料', petRows)}
+    ${emailSection('服務內容', serviceRows)}
+    ${
+      type === 'boarding'
+        ? emailSection('入住前健康與規範確認', buildBoardingHealthRows(formData))
+        : ''
+    }
+    ${companyInfoHtml}
+    ${getTermsHtml(type, serviceType)}
+    ${getHighRiskHtml(type, !!formData?.agreeHighRisk)}
+    ${attachHtml}
+  `;
+
+  return wrapMeowEmail({
+    title: `喵之谷｜${serviceLabel}契約副本`,
+    subtitle: '感謝您選擇喵之谷，以下為本次完整契約資料',
+    contentHtml
+  });
+};
+
+const buildMaineCoonEmailHtml = ({ tab, data, submitTime }) => {
+  const d = data || {};
+  const title = tab === 'retired' ? '緬因貓退役貓領養詢問' : '緬因貓幼貓詢問';
+
+  // 小工具：把空值欄位濾掉，避免信件太亂
+  const buildRows = (pairs = []) => {
+    return pairs
+      .filter(([_, v]) => {
+        if (v === null || v === undefined) return false;
+        if (typeof v === 'string' && v.trim() === '') return false;
+        if (Array.isArray(v) && v.length === 0) return false;
+        return true;
+      })
+      .map(([label, value]) => emailRow(label, value))
+      .join('');
+  };
+
+  // 摘要（不重複塞太多）
+  const summaryRows = buildRows([
+    ['詢問類型', title],
+    ['填寫時間', formatDateTime(submitTime)],
+    ['申請人', d.name || '未提供'],
+    ['聯絡方式', d.contact || '未提供']
+  ]);
+
+  let sectionHtml = '';
+
+  if (tab === 'retired') {
+    const basicRows = buildRows([
+      ['姓名', d.name],
+      ['年齡', d.age],
+      ['性別', d.gender],
+      ['職業類別與內容', d.job],
+      ['居住城市', d.city],
+      ['住家環境', d.homeEnv],
+      ['住家環境補充', d.homeEnvOther]
+    ]);
+
+    const experienceRows = buildRows([
+      ['是否養過貓', d.experience],
+      ['養貓經驗補充', d.experienceOther],
+      ['家裡目前貓數', d.catsNow],
+      ['原住貓個性', d.residentPersonality],
+      ['原住貓個性補充', d.residentPersonalityOther],
+      ['養貓經驗年數', d.expYears],
+      ['養貓年數補充', d.expYearsOther]
+    ]);
+
+    const preferenceRows = buildRows([
+      ['可接受讓渡狀況', d.acceptable],
+      ['存款狀況', d.savings],
+      ['存款狀況補充', d.savingsOther],
+      ['願意提供', d.provide]
+    ]);
+
+    const pledgeRows = buildRows([
+      ['同意承諾事項', d.promisesAck],
+      ['同意聲明', d.statementsAck],
+      ['同意送養評估說明', d.understandFinal],
+      ['半價讓渡貓咪意願（非退役貓）', d.halfPriceOptions]
+    ]);
+
+    sectionHtml = `
+      ${basicRows ? emailSection('基本資料', basicRows) : ''}
+      ${experienceRows ? emailSection('飼養經驗', experienceRows) : ''}
+      ${preferenceRows ? emailSection('條件與期待', preferenceRows) : ''}
+      ${pledgeRows ? emailSection('承諾與附加意願', pledgeRows) : ''}
+    `;
+  } else {
+    const basicRows = buildRows([
+      ['姓名', d.name],
+      ['年齡', d.age],
+      ['性別', d.gender]
+    ]);
+
+    const experienceRows = buildRows([
+      ['是否養過貓咪', d.experience],
+      ['養貓經驗補充', d.experienceOther],
+      ['曾經飼養品種', d.breeds],
+      ['飼養品種補充', d.breedOther],
+      ['家裡目前有幾隻貓', d.catsNow]
+    ]);
+
+    const preferenceRows = buildRows([
+      ['想找貓咪性別', d.desiredGender],
+      ['想找花色', d.colors],
+      ['花色補充', d.colorOther],
+      ['期待價格區間', d.priceRange],
+      ['預計每月餵養預算', d.monthlyBudget]
+    ]);
+
+    const pledgeRows = buildRows([
+      ['已了解緬因貓優缺點', d.ackTraits],
+      ['終養承諾', d.ackCommit],
+      ['半價讓渡貓咪意願（非退役貓）', d.halfPriceOptions]
+    ]);
+
+    sectionHtml = `
+      ${basicRows ? emailSection('基本資料', basicRows) : ''}
+      ${experienceRows ? emailSection('飼養經驗', experienceRows) : ''}
+      ${preferenceRows ? emailSection('需求偏好', preferenceRows) : ''}
+      ${pledgeRows ? emailSection('認知與承諾', pledgeRows) : ''}
+    `;
+  }
+
+  const contentHtml = `
+    ${emailSection('詢問摘要', summaryRows)}
+    ${sectionHtml}
+    ${companyInfoHtml}
+  `;
+
+  return wrapMeowEmail({
+    title: `喵之谷｜${title}副本`,
+    subtitle: '已收到您的詢問，我們會盡快與您聯繫',
+    contentHtml
+  });
+};
+console.log('DEBUG builders loaded =>', {
+  buildContractEmailHtml: typeof buildContractEmailHtml,
+  buildMaineCoonEmailHtml: typeof buildMaineCoonEmailHtml,
+  getHighRiskHtml: typeof getHighRiskHtml
+});
+const getServiceLabel = (type, serviceType) => {
+  if (type === 'grooming') return '純貓美容';
+  if (type === 'boarding' && serviceType === 'homecare') return '到府照顧';
+  if (type === 'boarding' && serviceType === 'daycare') return '純貓安親';
+  if (type === 'boarding') return '純貓住宿';
+  return '未分類服務';
+};
+
+const companyInfoHtml = `
+  <div style="margin-top:18px;padding:14px;border:1px solid #ead6c3;border-radius:12px;background:#fff;">
+    <h3 style="margin:0 0 8px;color:#b78963;">乙方（店家）資訊</h3>
+    <div style="font-size:13px;line-height:1.8;color:#4a3f36;">
+      <div>店名：喵之谷</div>
+      <div>特寵業許可證字號：S1140024</div>
+      <div>負責人：吳秉綸</div>
+      <div>聯絡電話：0919-263669</div>
+      <div>營業時間：週一至週日 12:00-20:00（採預約制）</div>
+      <div>地址：台中市豐原區水源路7巷192號1、4樓</div>
+    </div>
+  </div>
+`;
+function getHighRiskHtml(type, agreed) {
+  const serviceText = type === 'boarding' ? '寄養' : '美容';
+  const statusText = agreed ? '已同意' : '未勾選同意';
+
+  return `
+    <div style="margin-top:18px;padding:14px;border:1px solid #ead6c3;border-radius:12px;background:#fff;">
+      <h3 style="margin:0 0 8px;color:#b78963;">高風險寵物${serviceText}同意聲明</h3>
+      <div style="font-size:13px;line-height:1.9;color:#4a3f36;">
+        <div style="margin-bottom:8px;">
+          <b>同意狀態：</b>
+          <span style="color:${agreed ? '#2e7d32' : '#d9534f'};font-weight:700;">${statusText}</span>
+        </div>
+        <ol style="margin:0;padding-left:18px;">
+          <li>飼主確認已誠實告知寵物年齡、病史、過敏、攻擊行為等狀況。</li>
+          <li>高齡、幼齡或慢性病寵物，可能因緊迫誘發不可預期風險。</li>
+          <li>若非店家故意或重大過失，因寵物自身體質產生之不利結果，店家不負損害賠償責任。</li>
+          <li>如有緊急狀況，飼主同意店家先行聯繫並必要時送醫，相關費用由飼主負擔。</li>
+        </ol>
+      </div>
+    </div>
+  `;
+}
+const getTermsHtml = (type, serviceType) => {
+  if (type === 'grooming') {
+    return `
+      <div style="margin-top:18px;padding:14px;border:1px solid #ead6c3;border-radius:12px;background:#fff;">
+        <h3 style="margin:0 0 12px;color:#b78963;">美容服務契約條款</h3>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">1. 契約目的與服務範圍</h4>
+          <p style="margin:0;">犬、貓美容服務係指清洗、清潔、吹乾梳毛、毛髮修剪及造型設計等行為，不涉及任何動物醫療行為。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">2. 資訊揭露與契約效力</h4>
+          <p style="margin:0;">本契約內容公開於場所明顯處，簽署後此契約即生效。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">3. 寵物、甲方及乙方相關資料</h4>
+          <p style="margin:0;">本契約記載犬、貓、甲方（飼主）及乙方（業者）之基本資料，詳如附件。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">4. 服務內容說明及確認</h4>
+          <p style="margin:0;">甲方已於美容服務實施前，充分了解並同意本次美容服務項目、內容及費用。實際服務內容與費用，得依現場犬、貓狀況調整。乙方收取犬、貓美容服務費用，應開立憑證予甲方。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">5. 詢問義務與誠實告知</h4>
+          <p style="margin:0;">乙方於美容前已向甲方詢問犬、貓個性、是否具攻擊性、疾病史、過敏史、手術史或其他特殊注意事項，甲方應誠實告知。若甲方未如實告知，致美容期間發生異常或風險者（潛在疾病急性發作、死亡等），該結果非可歸責於乙方。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">6. 攻擊行為與安全中止</h4>
+          <p style="margin:0;">美容過程中，若犬、貓出現抓、咬、緊張、強烈掙扎、持續抗拒等攻擊行為，致難以繼續接受美容服務或危及犬、貓自身或美容師安全者，屬不可歸責於雙方之事由，乙方得立即中止美容服務，未執行之項目不予收費，不保證完成所有項目。若美容服務因前述原因未完成，凡已執行洗、吹、剃、修剪等項目，仍屬已提供之服務，乙方得就已發生之服務內容計算費用。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">7. 犬、貓於美容服務期間有異常狀況或死亡情形之處理</h4>
+          <p style="margin:0 0 6px;">美容期間如發現犬、貓有喘氣、流口水、失禁、精神不穩等應激或異常狀況，乙方應即時處理（終止美容、提供安全環境）並通知甲方，必要時送至乙方配合醫院，如非配合獸醫院之營業時間，將就近至設有24小時急診之獸醫院（夏洛克動物醫院）。</p>
+          <p style="margin:0;">如突發狀況無法及時聯絡甲方，甲方同意授權乙方緊急送醫處置，費用由甲方負擔。如該狀況非可歸責於乙方之人為疏失所致（如：摔傷、拉傷等），乙方不負損害賠償責任。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">8. 毛髮打結與處理方式調整</h4>
+          <p style="margin:0;">若現場發現犬、貓毛髮打結嚴重、貼皮結或需額外處理情形，乙方需先告知甲方後予調整處理方式（包含剃毛）及相關費用，如乙方聯繫不上甲方或未得到甲方同意，則不予處理（如：拆結、剃毛等）及額外收費。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">9. 甲方逾時接回犬、貓之處理方式</h4>
+          <p style="margin:0 0 6px;">乙方完成美容服務後，甲方應依通知後三十分鐘內接回犬、貓。甲方已同意收取逾時費，每小時新臺幣200元。</p>
+          <ul style="margin:0;padding-left:18px;">
+            <li>逾時未滿30分鐘：不收取逾時費</li>
+            <li>逾時30分鐘（未滿1小時）：$100（以半小時計）</li>
+            <li>超過30分鐘以上（未滿1小時者）：$200（以一小時計）</li>
+          </ul>
+          <p style="margin:6px 0 0;color:#d9534f;font-weight:700;">甲方逾三日未接回犬、貓者，乙方將通知動物保護主管機關依動物保護法相關規定處理，且甲方仍需支付期間照顧費用。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">10. 異常狀況及責任歸屬</h4>
+          <p style="margin:0;">犬、貓於美容服務期間發生異常或死亡情形，若屬可歸責於乙方之事由，乙方依法負相關責任；非可歸責於乙方者，乙方不負賠償責任。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">11. 個人資料保護</h4>
+          <p style="margin:0;">甲方同意個資用於服務聯繫，乙方予保密，非經甲方同意，乙方不得對外揭露（除政府單位要求）。甲方同意無償授權犬、貓影像用於官方宣傳，若不同意請提前告知。</p>
+        </section>
+
+        <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">12. 申訴處理及管轄法院</h4>
+          <p style="margin:0;">甲方對乙方提供之犬、貓美容服務有不滿意時，乙方將有專人接受申訴、協商。因本契約涉訟者，甲乙雙方同意以台中地方法院為第一審管轄法院。</p>
+        </section>
+
+        <section>
+          <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">13. 其他約定事項（拒收與傳染病規範）</h4>
+          <p style="margin:0 0 6px;">乙方因安全考量，以下情況恕不接待：</p>
+          <ul style="margin:0;padding-left:18px;">
+            <li>未完成三劑疫苗之幼貓 / 接種疫苗一周內</li>
+            <li>有傳染風險（打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血、貓冠狀病毒等）</li>
+            <li>嚴重疾病（心臟病、癲癇、嚴重呼吸道疾病）</li>
+          </ul>
+          <p style="margin:6px 0 0;color:#d9534f;font-weight:700;">有傳染風險需額外收取清潔費用 $3000；如經店家判斷太嚴重須由飼主馬上接回並終止合約（也需付清潔費用，費用由店家規定不得異議）。</p>
+        </section>
+      </div>
+    `;
+  }
+
+  // 住宿 / 到府 / 安親：依你現在流程，統一使用住宿主契約全文
+  return `
+    <div style="margin-top:18px;padding:14px;border:1px solid #ead6c3;border-radius:12px;background:#fff;">
+      <h3 style="margin:0 0 12px;color:#b78963;">住宿服務契約條款</h3>
+
+      <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+        <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">1. 契約目的與範圍</h4>
+        <p style="margin:0;">本契約所稱貓寄養業者，指在特定期間內，以營業場所提供貓寄宿、飼養之業者。乙方收取寄養費用，應開立收費憑證交付甲方。</p>
+      </section>
+
+      <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+        <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">2. 資訊揭露義務</h4>
+        <p style="margin:0;">本契約及特定寵物業寄養許可證正本公告於場所明顯處，簽署後此契約即生效。</p>
+      </section>
+
+      <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+        <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">3. 甲方誠實告知義務</h4>
+        <p style="margin:0 0 6px;">乙方於簽約前向甲方詢問、確認貓是否合適接受寄養，甲方對於乙方之詢問應誠實告知，並主動告知乙方貓是否有疾病史、手術史等健康狀況或其他特殊須注意事項。</p>
+        <p style="margin:0;color:#d9534f;font-weight:700;">寄養之貓因甲方隱瞞病況發生意外或死亡，且乙方無疏失，則乙方無須負損害賠償責任且乙方得解除契約。甲方應於雙方約定時間內將寄養之貓領回，如逾時未領回或無法提前接回，則飼主須自行承擔貓之健康風險，且仍需支付寄養或逾時費用。</p>
+      </section>
+
+      <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+        <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">4. 寄養期間之異常狀況處理</h4>
+        <p style="margin:0 0 6px;">於寄養期間，乙方發現貓有緊急就醫必要時，需立即通知甲方或其指定之緊急聯絡人，乙方應優先將貓送往甲方指定獸醫院，如甲方指定獸醫院及乙方配合獸醫院皆為營業時間外，則就近至設有24小時急診之獸醫院（夏洛克動物醫院）。</p>
+        <ul style="margin:0;padding-left:18px;">
+          <li>甲方同意授權乙方緊急送醫處置，費用由甲方負擔。</li>
+          <li>外出就醫需額外支付車馬費：$300 / 小時。</li>
+          <li>所有診療費用由甲方全額負擔。</li>
+        </ul>
+      </section>
+
+      <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+        <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">5. 貓寄養契約之解除及退費規定</h4>
+        <p style="margin:0 0 6px;">甲乙雙方確認訂房後，需預付總房價 50% 為定金，乙方即予保留房位及時段，尾款於入住時收取，提前退宿恕不予退款。</p>
+        <p style="margin:0 0 6px;font-weight:700;">本館退費規定：</p>
+        <ul style="margin:0;padding-left:18px;">
+          <li>入住 15 天前（含）：定金全數退回</li>
+          <li>入住 8～14 天前：定金退回 50%</li>
+          <li>未達 7 天（含）：恕不退還（可保留一年）</li>
+        </ul>
+        <p style="margin:6px 0 0;">連續假期與農曆春節將另行公告，不適用以上規定。遇颱風、地震等不可抗力（以台中市政府公告為主），定金可保留乙次（有效期一年）。</p>
+      </section>
+
+      <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+        <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">6. 甲方逾時接回貓之處理方式</h4>
+        <p style="margin:0 0 6px;">甲方應準時接回，除經乙方同意延長留置外，不得逾期滯留。逾時費標準 $200/小時。</p>
+        <ul style="margin:0;padding-left:18px;">
+          <li>未滿 30 分鐘：不收取逾時費</li>
+          <li>30 分鐘 ～ 1 小時：$100（以半小時計）</li>
+          <li>超過 1 小時：$200（以一小時計）</li>
+        </ul>
+        <p style="margin:6px 0 0;color:#d9534f;font-weight:700;">超過當日營業時間未接回：需隔日接回並支付寄養費用。逾三日未接回且失聯：依動保法規定辦理，甲方應負擔衍生費用。</p>
+      </section>
+
+      <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+        <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">7. 個人資料保護</h4>
+        <p style="margin:0;">甲方同意個資用於服務聯繫，乙方予保密，非經甲方同意，乙方不得對外揭露（除政府單位要求）。甲方同意無償授權貓影像用於官方宣傳，若不同意請提前告知。</p>
+      </section>
+
+      <section style="margin-bottom:12px;padding:12px;border:1px solid #f0e3d7;border-radius:10px;background:#fffaf7;">
+        <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">8. 申訴處理及管轄法院</h4>
+        <p style="margin:0;">甲方對乙方提供之服務有不滿意時，乙方將有專人接受申訴、協商。因本契約涉訟者，甲乙雙方同意以台中地方法院為第一審管轄法院。</p>
+      </section>
+
+      <section>
+        <h4 style="margin:0 0 8px;color:#8c6b5d;font-size:14px;">9. 其他約定事項（拒收與傳染病規範）</h4>
+        <p style="margin:0 0 6px;">乙方因安全考量，以下情況恕不接待：</p>
+        <ul style="margin:0;padding-left:18px;">
+          <li>未完成三劑疫苗之幼貓 / 接種疫苗一周內</li>
+          <li>有傳染風險（打噴嚏、咳嗽、黴菌、跳蚤、壁蝨、絛蟲、貓瘟、貓白血、貓冠狀病毒等）</li>
+          <li>嚴重疾病（心臟病、癲癇、腎臟泌尿系統疾病、嚴重呼吸道疾病）</li>
+        </ul>
+        <p style="margin:6px 0 0;color:#d9534f;font-weight:700;">有傳染風險需額外收取清潔費用 $3000；如經店家判斷太嚴重須由飼主馬上接回並終止合約（也需付清潔費用，費用由店家規定不得異議）。</p>
+      </section>
+    </div>
+  `;
+};
+// 一封寄客人，店家走 BCC；若客人沒填 email，則直接寄店家
+const sendMailCopies = async ({
+  subjectBase = '',
+  html,
+  customerEmail,
+  storeEmail,
+  serviceType = '',
+  petNames = ''
+}) => {
+  const customer = (customerEmail || '').trim();
+  const store = (storeEmail || '').trim();
+
+  if (!customer && !store) {
+    return [{ target: '', bcc: '', data: null, error: new Error('無收件者') }];
+  }
+
+  const body = {
+    to: [customer || store],
+    html,
+    serviceType,
+    petNames
+  };
+
+  // 若你仍想保留可手動覆蓋主旨的能力，可留這段
+  if ((subjectBase || '').trim()) {
+    body.subject = subjectBase.trim();
+  }
+
+  // 只有客人有填，且店家存在，才做 bcc
+  if (customer && store && customer !== store) {
+    body.bcc = [store];
+  }
+
+  const { data, error } = await supabase.functions.invoke('resend-email', { body });
+
+  return [{
+    target: body.to[0],
+    bcc: (body.bcc && body.bcc[0]) ? body.bcc[0] : '',
+    data,
+    error
+  }];
 };
   // --- 子元件 1：首頁畫面 ---
 const HomeView = ({ onNavigate, onHeroLogoTap }) => (
@@ -360,7 +1031,7 @@ const SignatureModal = ({ onSave, onClose }) => {
 };
 
   // --- 子元件 4：專業版契約表單 ---
-const ContractForm = ({ title, type, onBack }) => {
+const ContractForm = ({ title, type, onBack, onSuccess }) => {
   useEffect(() => {
     lucide.createIcons();
   }, []);
@@ -445,10 +1116,38 @@ const setField = (patch, clearKeys=[]) => {
     setMissingBoarding(prev => prev.filter(k => !clearKeys.includes(k)));
   }
 };
-    const handleChange = (e) => {
-      const { name, value, type, checked } = e.target;
-      setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-    };
+const handleChange = (e) => {
+  const { name, value, type, checked } = e.target;
+
+  // checkbox 直接處理
+  if (type === 'checkbox') {
+    setFormData(prev => ({ ...prev, [name]: checked }));
+    return;
+  }
+
+  // 手機號碼：限制 10 碼，且固定 09 開頭
+  if (name === 'phone') {
+    let v = String(value || '').replace(/\D/g, ''); // 只留數字
+
+    if (v.length === 1 && v !== '0') v = '0';
+    if (v.length >= 2 && v.slice(0, 2) !== '09') {
+      v = '09' + v.slice(2);
+    }
+
+    v = v.slice(0, 10);
+    setFormData(prev => ({ ...prev, phone: v }));
+    return;
+  }
+
+  // 身分證：首字母大寫，英數，最多10碼
+  if (name === 'idNumber') {
+    let v = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+    setFormData(prev => ({ ...prev, idNumber: v }));
+    return;
+  }
+
+  setFormData(prev => ({ ...prev, [name]: value }));
+};
 const toggleAddon = (val) => {
   const current = Array.isArray(formData.groomingAddons) ? formData.groomingAddons : [];
   const next = current.includes(val)
@@ -681,13 +1380,6 @@ const handleApplyHistory = (record) => {
     healthNote: pick(record.healthNote, prev.healthNote),
     prefHospital: pick(record.prefHospital, record.preferred_clinic, prev.prefHospital),
 
-    // D1. 美容欄位
-    groomingService: pick(record.grooming_service, record.groomingService, prev.groomingService),
-    groomingCoat: pick(record.grooming_coat, record.groomingCoat, prev.groomingCoat),
-    groomingAddons: Array.isArray(record.groomingAddons)
-      ? record.groomingAddons
-      : (Array.isArray(record.grooming_addons) ? record.grooming_addons : (prev.groomingAddons || [])),
-
     // D2. 住宿欄位（住宿紀錄才導入）
     ...(record.source === 'boarding' ? {
       serviceType: pick(record.serviceType, 'boarding'),
@@ -782,6 +1474,11 @@ const validateBoardingHealth = () => {
   return missing;
 };
 const handleFinalSubmit = async () => {
+    if (typeof buildContractEmailHtml !== 'function') {
+    console.error('buildContractEmailHtml 型別：', typeof buildContractEmailHtml);
+    alert('系統尚未載入最新版本（buildContractEmailHtml）。請重新整理後再試。');
+    return;
+  }
   // ✅ 入住前健康規範必填驗證
   if (type === 'boarding' && formData.serviceType === 'boarding') {
     const missing = validateBoardingHealth();
@@ -796,6 +1493,15 @@ const handleFinalSubmit = async () => {
     alert('請填寫飼主姓名');
     return;
   }
+  if (!/^09\d{8}$/.test((formData.phone || '').trim())) {
+  alert('請填寫正確手機號碼（格式：09xxxxxxxx）');
+  return;
+}
+
+if (!/^[A-Z]\d{9}$/.test((formData.idNumber || '').trim())) {
+  alert('請填寫正確身分證字號（格式：A123456789）');
+  return;
+}
   if (!sigImage) {
     alert('請先完成簽名');
     return;
@@ -810,6 +1516,12 @@ const handleFinalSubmit = async () => {
 
   try {
     const submitTime = new Date().toISOString();
+
+    // 服務類型智慧判斷（美容 / 住宿 / 到府 / 安親）
+    const finalServiceType =
+      type === 'grooming'
+        ? 'grooming'
+        : (formData.serviceType || 'boarding');
 
     // 1) 上傳簽名
     setUploadProgress(20);
@@ -840,7 +1552,7 @@ const handleFinalSubmit = async () => {
       sigImage: sigUrl,
       sigTime: formData.sigTime || submitTime,
 
-      // ✅ 補 snake_case，讓你舊客查詢比較穩
+      // snake_case 備援
       owner_name: formData.ownerName || '',
       phone: formData.phone || '',
       id_number: formData.idNumber || '',
@@ -861,12 +1573,12 @@ const handleFinalSubmit = async () => {
       medical_status: formData.healthHistory || '',
       medical_history: Array.isArray(formData.behavior) ? formData.behavior : [],
       preferred_clinic: formData.prefHospital || '',
-      service_type: type === 'boarding' ? 'boarding' : 'grooming'
+      service_type: finalServiceType
     };
 
-    // 5) 準備 DB payload（先用穩定欄位）
+    // 5) DB payload
     const dbData = {
-      service_type: type === 'boarding' ? 'boarding' : 'grooming',
+      service_type: finalServiceType,
       owner_name: formData.ownerName || '',
       phone: formData.phone || '',
       pet_name: formData.petName || '',
@@ -878,14 +1590,14 @@ const handleFinalSubmit = async () => {
       raw_data: safeRawData
     };
 
-    // 若是美容，補美容欄位
+    // 美容欄位
     if (type === 'grooming') {
       dbData.grooming_coat = formData.groomingCoat || '';
       dbData.grooming_service = formData.groomingService || '';
       dbData.grooming_addons = Array.isArray(formData.groomingAddons) ? formData.groomingAddons : [];
     }
 
-    // 若是住宿，補住宿欄位
+    // 住宿 / 到府 / 安親欄位（都存 boarding_bookings）
     if (type === 'boarding') {
       dbData.room_type = formData.roomType || '';
       dbData.diet_type = [
@@ -908,10 +1620,55 @@ const handleFinalSubmit = async () => {
 
     if (error) throw error;
 
-    setUploadProgress(100);
-    alert('預約單提交成功！');
+    // ✅ 6) 寄「完整契約副本」Email（客戶+店家一式兩份）
+    setUploadProgress(90);
 
-    if (onBack) onBack();
+const serviceLabel = getServiceLabel(type, finalServiceType);
+
+const html = buildContractEmailHtml({
+  type,
+  serviceType: finalServiceType,
+  formData,
+  sigUrl,
+  vaccineUrl,
+  dewormUrl,
+  submitTime
+});
+
+const mailResults = await sendMailCopies({
+  html,
+  customerEmail: formData.email || '',
+  storeEmail: STORE_EMAIL,
+  serviceType: finalServiceType,
+  petNames: formData.petName || ''
+});
+
+const failed = (mailResults || []).filter(r => r.error);
+if (failed.length > 0) {
+  console.error('寄信失敗清單：', failed);
+  alert('✅ 表單已送出，但部分信件寄送失敗（可至後台補寄）');
+}
+
+const successPayload = {
+  hasEmail: !!(formData.email || '').trim(),
+  email: (formData.email || '').trim(),
+  serviceLabel,
+  submitTime,
+  contractHtml: html
+};
+
+localStorage.setItem('mv_last_submit', JSON.stringify(successPayload));
+
+setUploadProgress(100);
+ 
+if (onSuccess) {
+  onSuccess(successPayload);
+  return;
+}
+
+alert('預約單提交成功！');
+if (onBack) onBack();
+return;
   } catch (error) {
     console.error('提交失敗詳情:', error);
     alert('提交失敗：' + (error?.message || '未知錯誤，請稍後再試'));
@@ -1026,12 +1783,15 @@ const handleFinalSubmit = async () => {
     <div className="form-group">
       <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">電話 / Mobile<span className="text-red-500">*</span></label>
       <div className="flex gap-2">
-        <input 
-          type="tel" 
-          {...bind('phone')}
-          placeholder="09xxxxxxxx" 
-          className="flex-1 bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
-        />
+<input 
+  type="tel"
+  inputMode="numeric"
+  maxLength={10}
+  pattern="09[0-9]{8}"
+  {...bind('phone')}
+  placeholder="09xxxxxxxx"
+  className="flex-1 bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner"
+/>
         <button 
           type="button"
           onClick={handleSearchHistory}
@@ -1053,12 +1813,13 @@ const handleFinalSubmit = async () => {
     <span className="text-red-500 ml-2">[入住當天需攜帶核對]</span>
   )}
 </label>
-      <input 
-        type="text" 
-        {...bind('idNumber')}
-        placeholder="請填寫身分證字號" 
-        className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
-      />
+<input
+  type="text"
+  maxLength={10}
+  {...bind('idNumber')}
+  placeholder="A123456789"
+  className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner"
+/>
     </div>
 
     {/* 電子郵件 */}
@@ -2798,69 +3559,82 @@ const handleFinalSubmit = async () => {
     );
   };
 // --- Success View (喵之谷風格重製) ---
-  const SuccessView = () => (
-    <div className="max-w-md mx-auto p-6 animate-fade-in flex flex-col items-center pt-10">
-      
-      {/* 成功圖示 */}
-      <div className="w-20 h-20 bg-[#b78963] rounded-full flex items-center justify-center shadow-lg mb-6 ring-4 ring-[#e6dace]">
-        <Check size={40} className="text-white" strokeWidth={3} />
+// --- Success View (喵之谷風格重製) ---
+const SuccessView = ({ onNavigate }) => {
+  const [payload, setPayload] = useState({});
+
+  useEffect(() => {
+    const raw = localStorage.getItem('mv_last_submit');
+    setPayload(raw ? JSON.parse(raw) : {});
+    lucide.createIcons();
+  }, []);
+
+  useEffect(() => {
+    lucide.createIcons();
+  });
+
+  const isMaine = payload?.kind === 'mainecoon';
+  const copyLabel = isMaine ? '詢問副本' : '契約副本';
+
+  const openContract = () => {
+    if (!payload?.contractHtml) {
+      alert(`找不到${copyLabel}內容，請回首頁重新送出。`);
+      return;
+    }
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert('請允許彈出視窗後再試一次');
+      return;
+    }
+    win.document.open();
+    win.document.write(payload.contractHtml);
+    win.document.close();
+  };
+
+  const hasEmail = !!payload?.hasEmail;
+
+  return (
+    <section className="mv-success-wrap animate-in fade-in duration-500">
+      <div className="mv-success-icon">
+        <i data-lucide="check"></i>
       </div>
 
-      <h2 className="text-2xl font-bold text-[#5e4b35] mb-2 tracking-wide">預約已送出！</h2>
-      <p className="text-sm text-[#8c6b4a] mb-8">感謝您選擇喵之谷，我們將盡快與您聯繫。</p>
+      <h2 className="mv-success-title">
+        {isMaine ? '提交成功' : (hasEmail ? `${copyLabel}已寄出` : '提交成功（未填信箱）')}
+      </h2>
 
-      {/* 訂單明細卡片 */}
-      <div className="w-full bg-white border-2 border-[#e6dace] rounded-2xl overflow-hidden shadow-sm relative">
-        {/* 頂部裝飾條 */}
-        <div className="h-2 bg-[#b78963] w-full"></div>
-        
-        <div className="p-6 space-y-4">
-          <div className="flex justify-between items-center border-b border-dashed border-[#e6dace] pb-4">
-             <span className="text-xs text-gray-400 font-medium">預約編號</span>
-             <span className="text-sm font-mono text-[#b78963] font-bold">#PENDING</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 text-left">
-            <div>
-              <p className="text-[10px] text-gray-400 mb-1">預約日期</p>
-              <p className="text-sm font-bold text-[#5e4b35]">{formData.date}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-gray-400 mb-1">抵達時間</p>
-              <p className="text-sm font-bold text-[#5e4b35]">{formData.time}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-gray-400 mb-1">飼主姓名</p>
-              <p className="text-sm font-bold text-[#5e4b35]">{formData.ownerName}</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-gray-400 mb-1">貓咪資訊</p>
-              <p className="text-sm font-bold text-[#5e4b35]">{formData.catName} ({formData.catBreed})</p>
-            </div>
-          </div>
-
-          <div className="bg-[#f6efe7] rounded-lg p-3 mt-2 flex justify-between items-center">
-             <span className="text-xs text-[#8c6b4a] font-bold">預估費用</span>
-             <span className="text-lg font-black text-[#b78963]">${price}</span>
-          </div>
-        </div>
-
-        {/* 底部票根裝飾 */}
-        <div className="bg-[#f9f9f9] p-4 border-t border-[#e6dace] text-center">
-           <p className="text-[10px] text-gray-400">請留意我們的手機來電或簡訊通知</p>
-        </div>
+      <div className="mv-success-note">
+        {isMaine ? (
+          <>
+            <p>我們已收到您的詢問，會盡快與您聯繫。</p>
+            <p>建議先開啟詢問副本並截圖保存。</p>
+          </>
+        ) : hasEmail ? (
+          <>
+            <p>📩 {copyLabel}已發送至您的信箱</p>
+            <p>收件信箱：<b>{payload?.email}</b></p>
+            <p>建議您先開啟{copyLabel}頁面，截圖保存。</p>
+          </>
+        ) : (
+          <>
+            <p style={{ color: '#d9534f', fontWeight: 700 }}>⚠️ 您未填寫 Email，未寄送副本郵件。</p>
+            <p>建議您先開啟{copyLabel}頁面，截圖保存。</p>
+          </>
+        )}
       </div>
 
-      <button 
-        onClick={() => window.location.reload()}
-        className="mt-8 text-[#b78963] text-sm font-bold hover:underline flex items-center gap-1"
-      >
-        <RotateCcw size={14}/>
-        返回首頁預約下一筆
+      <button className="mv-success-btn primary" onClick={openContract}>
+        <i data-lucide="file-text"></i>
+        {isMaine ? '開啟詢問副本（截圖保存）' : '開啟完整契約（截圖保存）'}
       </button>
 
-    </div>
+      <button className="mv-success-btn" onClick={() => onNavigate('home')}>
+        <i data-lucide="house"></i>
+        返回首頁（完成）
+      </button>
+    </section>
   );
+};
   // --- 子元件 5：舊客搜尋 Modal (喵之谷風格) ---
 const HistoryModal = ({ records, onClose, onSelect }) => {
   const [selectedPet, setSelectedPet] = useState(null);
@@ -2964,7 +3738,7 @@ const HistoryModal = ({ records, onClose, onSelect }) => {
   );
 };
 // --- 子元件 6：緬因貓詢問表單 (問卷版) ---
-const MaineCoonForm = ({ onBack }) => {
+const MaineCoonForm = ({ onBack, onSuccess }) => {
   useEffect(() => {
     lucide.createIcons();
   }, []);
@@ -3066,8 +3840,16 @@ homeEnv: '', homeEnvOther: ''
 
 const handleSubmit = async () => {
   const missing = tab === 'kitten' ? validateKitten() : validateRetired();
+
   if (missing.length > 0) {
-    alert("請完成以下必填：\n" + missing.join('、'));
+    alert(
+      "⚠️ 還有必填資料未完成：\n\n" +
+      missing.map((m, i) => `${i + 1}. ${m}`).join('\n')
+    );
+
+    // 自動捲到缺漏提示框
+    const box = document.getElementById('mc-missing-box');
+    if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
@@ -3103,6 +3885,49 @@ const handleSubmit = async () => {
 
     if (error) throw error;
 
+    // 寄詢問副本 email（客戶 + 店家）
+    const sourceData = tab === 'kitten' ? kitten : retired;
+    const html = buildMaineCoonEmailHtml({
+      tab,
+      data: sourceData,
+      submitTime
+    });
+
+    // 只有 contact 含 @ 才視為客戶 email
+    const customerEmail = (sourceData.contact || '').includes('@') ? sourceData.contact : '';
+
+    const mailResults = await sendMailCopies({
+      html,
+      customerEmail,
+      storeEmail: STORE_EMAIL,
+      serviceType: 'mainecoon',
+      petNames: ''
+    });
+
+    const failed = (mailResults || []).filter(r => r.error);
+    if (failed.length > 0) {
+      console.error('緬因貓詢問寄信失敗：', failed);
+      alert("✅ 詢問已送出，但信件寄送失敗，請聯繫我們確認（" + failed.map(f => f.target).join(', ') + "）");
+    }
+
+    // 統一寫入成功頁資料
+    const successPayload = {
+      kind: 'mainecoon',
+      hasEmail: !!(customerEmail || '').trim(),
+      email: (customerEmail || '').trim(),
+      serviceLabel: tab === 'retired' ? '緬因貓退役貓詢問' : '緬因貓幼貓詢問',
+      submitTime,
+      contractHtml: html
+    };
+    localStorage.setItem('mv_last_submit', JSON.stringify(successPayload));
+
+    // 導向 success 頁
+    if (onSuccess) {
+      onSuccess(successPayload);
+      return;
+    }
+
+    // 備援：如果沒傳 onSuccess 才用舊流程
     alert("✅ 緬因貓詢問已送出，我們會盡快與您聯繫");
     if (onBack) onBack();
   } catch (err) {
@@ -3113,9 +3938,10 @@ const handleSubmit = async () => {
   }
 };
 
-  const submitReady = tab === 'kitten'
-    ? validateKitten().length === 0
-    : validateRetired().length === 0;
+  // 即時缺漏清單（用來顯示給客人看）
+  const currentMissing = tab === 'kitten'
+    ? validateKitten()
+    : validateRetired();
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24 survey">
@@ -3598,17 +4424,37 @@ const handleSubmit = async () => {
           )}
 
           {/* 按鈕 */}
-          <div className="grid grid-cols-2 gap-4 px-2 mt-8">
-            <button className="py-4 bg-white/50 text-sub rounded-2xl font-bold shadow-sm" onClick={onBack}>返回</button>
-<button
-  className={`py-4 rounded-2xl font-bold shadow-lg ${
-    submitReady && !isSubmitting ? 'bg-milk-deep text-white' : 'bg-gray-300 text-white'
-  }`}
-  onClick={handleSubmit}
-  disabled={!submitReady || isSubmitting}
->
-  {isSubmitting ? '送出中...' : '送出'}
-</button>
+          {/* 缺漏提示區 */}
+          <div id="mc-missing-box" className="px-2 mt-6">
+            {currentMissing.length > 0 ? (
+              <div className="mc-missing-box">
+                <div className="mc-missing-title">⚠️ 尚有 {currentMissing.length} 項必填未完成</div>
+                <div className="mc-missing-list">{currentMissing.join('、')}</div>
+              </div>
+            ) : (
+              <div className="mc-ok-box">✅ 已填寫完整，可以送出</div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 px-2 mt-4">
+            <button
+              className="py-4 bg-white/50 text-sub rounded-2xl font-bold shadow-sm"
+              onClick={onBack}
+            >
+              返回
+            </button>
+
+            <button
+              className={`py-4 rounded-2xl font-bold shadow-lg ${
+                isSubmitting ? 'bg-gray-300 text-white' : 'bg-milk-deep text-white'
+              }`}
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting
+                ? '送出中...'
+                : (currentMissing.length > 0 ? `送出（尚缺 ${currentMissing.length} 項）` : '送出')}
+            </button>
           </div>
         </>
       )}
@@ -3674,9 +4520,28 @@ const handleHeroLogoTap = (e) => {
         </nav>
 <main className="wrap">
 {view === 'home' && <HomeView onNavigate={navigateTo} onHeroLogoTap={handleHeroLogoTap} />}
-  {view === 'grooming' && <ContractForm title="純貓美容契約" type="grooming" onBack={() => navigateTo('home')} />}
-  {view === 'boarding' && <ContractForm title="純貓住宿契約" type="boarding" onBack={() => navigateTo('home')} />}
-  {view === 'mainecoon' && <MaineCoonForm onBack={() => navigateTo('home')} />}
+{view === 'grooming' && (
+  <ContractForm
+    title="美容契約"
+    type="grooming"
+    onBack={() => navigateTo('home')}
+    onSuccess={() => navigateTo('view-success')}
+  />
+)}
+{view === 'boarding' && (
+  <ContractForm
+    title="住宿契約"
+    type="boarding"
+    onBack={() => navigateTo('home')}
+    onSuccess={() => navigateTo('view-success')}
+  />
+)}
+{view === 'mainecoon' && (
+  <MaineCoonForm
+    onBack={() => navigateTo('home')}
+    onSuccess={() => navigateTo('view-success')}
+  />
+)}
   {view === 'view-success' && <SuccessView onNavigate={navigateTo} />}
 </main>
       </div>
@@ -4994,17 +5859,117 @@ input, textarea, select {
   color: #b66c6c;
   margin-bottom: 6px;
 }
-
+.mv-success-wrap{
+  max-width:560px;
+  margin:0 auto;
+  padding:26px 18px;
+  border:1px solid #e5d5c6;
+  border-radius:28px;
+  background:#fbf7f2;
+  box-shadow:0 14px 32px rgba(73,58,47,.10);
+  text-align:center;
+}
+.mv-success-icon{
+  width:86px;
+  height:86px;
+  border-radius:999px;
+  margin:0 auto 14px;
+  display:grid;
+  place-items:center;
+  background:#efe4d6;
+  color:#8c6b5d;
+}
+.mv-success-icon svg{
+  width:38px;
+  height:38px;
+}
+.mv-success-title{
+  margin:0 0 14px;
+  font-size:34px;
+  color:#8c6b5d;
+  font-weight:900;
+}
+.mv-success-note{
+  text-align:left;
+  background:#fff;
+  border:1px solid #e8d8c8;
+  border-radius:16px;
+  padding:14px;
+  color:#6f6258;
+  line-height:1.8;
+  margin-bottom:14px;
+}
+.mv-success-btn{
+  width:100%;
+  border:1px solid #d9c7b6;
+  border-radius:16px;
+  padding:14px 16px;
+  margin-top:10px;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  background:#fff;
+  color:#6a5a4f;
+  cursor:pointer;
+}
+.mv-success-btn.primary{
+  background:linear-gradient(90deg,#a98a74,#e1c680);
+  color:#fff;
+  border:none;
+}
+.mc-missing-box{
+  background:#fff5f5;
+  border:1px solid #fecaca;
+  border-radius:14px;
+  padding:12px 14px;
+  margin-bottom:4px;
+}
+.mc-missing-title{
+  color:#b91c1c;
+  font-size:13px;
+  font-weight:800;
+  margin-bottom:4px;
+}
+.mc-missing-list{
+  color:#7f1d1d;
+  font-size:12px;
+  line-height:1.6;
+}
+.mc-ok-box{
+  background:#f0fdf4;
+  border:1px solid #bbf7d0;
+  border-radius:14px;
+  padding:12px 14px;
+  color:#166534;
+  font-size:13px;
+  font-weight:800;
+}
   </style>
 </head>
 
 <body class="style-sweet">
   <div id="root"></div>
 
-  <script>
+<script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js?v=9').then(function (reg) {
+  window.addEventListener('load', async function () {
+    try {
+      // 先註銷舊的
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) {
+        await r.unregister();
+      }
+
+      // 清掉舊快取
+      if (window.caches && caches.keys) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+
+      // 重新註冊新版本（把 v=10 當版本號）
+      const reg = await navigator.serviceWorker.register('/sw.js?v=12');
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -5012,17 +5977,20 @@ if ('serviceWorker' in navigator) {
 
       reg.addEventListener('updatefound', function () {
         const newWorker = reg.installing;
+        if (!newWorker) return;
         newWorker.addEventListener('statechange', function () {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
             newWorker.postMessage({ type: 'SKIP_WAITING' });
           }
         });
       });
-    });
 
-    navigator.serviceWorker.addEventListener('controllerchange', function () {
-      window.location.reload();
-    });
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        window.location.reload();
+      });
+    } catch (e) {
+      console.error('SW 更新失敗：', e);
+    }
   });
 }
 </script>
