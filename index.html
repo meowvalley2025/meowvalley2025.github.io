@@ -6,9 +6,11 @@
 <link rel="icon" href="logo.jpg" type="image/jpeg">
 <link rel="apple-touch-icon" sizes="180x180" href="logo.jpg">
   <link rel="manifest" href="manifest.json">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ichitenfont/I.MingWebfont/index.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/ichitenfont/I.MingWebfont/index.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ichitenfont/I.MingWebfont/index.css"></noscript>
+<link rel="preload" href="JasonHandwriting1.ttf" as="font" type="font/ttf" crossorigin>
   <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -110,7 +112,8 @@ const dataUrlToFile = async (dataUrl, fileName = 'signature.png') => {
 // ====== Email 設定與模板工具（喵之谷） ======
 const STORE_EMAIL = "meow.valley2025@gmail.com";
 const BRAND_LOGO_URL = "https://iqhalbrbivruokxxgycw.supabase.co/storage/v1/object/public/logo/logo.png";
-
+const isValidEmail = (email = '') =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
 const toText = (v) => {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'boolean') return v ? '是' : '否';
@@ -259,12 +262,14 @@ const buildAttachmentHtml = ({ type, sigUrl, vaccineUrl, dewormUrl, sigTime }) =
             <div style="font-size:13px;line-height:1.9;">
               <div>疫苗證明：${
                 vaccineUrl
-                  ? `<a href="${escHtml(vaccineUrl)}" target="_blank" style="color:#b78963;font-weight:700;">點我查看疫苗證明</a>`
+? `<a href="${escHtml(vaccineUrl)}" target="_blank" rel="noopener noreferrer" style="color:#b78963;font-weight:700;">點我查看疫苗證明</a>`
+
                   : '未提供'
               }</div>
               <div>驅蟲證明：${
                 dewormUrl
-                  ? `<a href="${escHtml(dewormUrl)}" target="_blank" style="color:#b78963;font-weight:700;">點我查看驅蟲證明</a>`
+? `<a href="${escHtml(dewormUrl)}" target="_blank" rel="noopener noreferrer" style="color:#b78963;font-weight:700;">點我查看驅蟲證明</a>`
+
                   : '未提供'
               }</div>
             </div>
@@ -737,6 +742,7 @@ const getTermsHtml = (type, serviceType) => {
   `;
 };
 // 一封寄客人，店家走 BCC；若客人沒填 email，則直接寄店家
+// 一封寄客人，店家走 BCC；若客人 email 無效或沒填，則直接寄店家
 const sendMailCopies = async ({
   subjectBase = '',
   html,
@@ -745,11 +751,21 @@ const sendMailCopies = async ({
   serviceType = '',
   petNames = ''
 }) => {
-  const customer = (customerEmail || '').trim();
-  const store = (storeEmail || '').trim();
+  const customerRaw = (customerEmail || '').trim();
+  const storeRaw = (storeEmail || '').trim();
+
+  const customer = isValidEmail(customerRaw) ? customerRaw : '';
+  const store = isValidEmail(storeRaw) ? storeRaw : '';
+
+  if (customerRaw && !customer) {
+    console.warn('customerEmail 格式無效，改為只寄店家：', customerRaw);
+  }
+  if (storeRaw && !store) {
+    console.warn('storeEmail 格式無效：', storeRaw);
+  }
 
   if (!customer && !store) {
-    return [{ target: '', bcc: '', data: null, error: new Error('無收件者') }];
+    return [{ target: '', bcc: '', data: null, error: new Error('無有效收件者') }];
   }
 
   const body = {
@@ -759,12 +775,12 @@ const sendMailCopies = async ({
     petNames
   };
 
-  // 若你仍想保留可手動覆蓋主旨的能力，可留這段
+  // 可手動覆蓋主旨
   if ((subjectBase || '').trim()) {
     body.subject = subjectBase.trim();
   }
 
-  // 只有客人有填，且店家存在，才做 bcc
+  // 客人有效 + 店家有效 + 兩者不同 => 店家放 BCC
   if (customer && store && customer !== store) {
     body.bcc = [store];
   }
@@ -824,34 +840,35 @@ const HomeView = ({ onNavigate, onHeroLogoTap }) => (
       </div>
 
       <div className="footer mt-10">
-        <div className="socials">
-          <a href="https://www.instagram.com/meow_valley2025" target="_blank"><i data-lucide="instagram"></i></a>
-          <a href="https://www.facebook.com/profile.php?id=61577336540564" target="_blank"><i data-lucide="facebook"></i></a>
-          <a href="https://line.me/R/ti/p/@463mpova?oat_content=url&ts=02031808" target="_blank"><img src="line.png" className="line-img" /></a>
-        </div>
-<a className="addr" href="https://maps.app.goo.gl/m7wQdKVCuVQXgKgL6" target="_blank">
-          <i data-lucide="map-pin"></i>
-          臺中市豐原區水源路7巷192號
-        </a>
+<div className="socials">
+  <a href="https://www.instagram.com/meow_valley2025" target="_blank" rel="noopener noreferrer"><i data-lucide="instagram"></i></a>
+  <a href="https://www.facebook.com/profile.php?id=61577336540564" target="_blank" rel="noopener noreferrer"><i data-lucide="facebook"></i></a>
+  <a href="https://line.me/R/ti/p/@463mpova?oat_content=url&ts=02031808" target="_blank" rel="noopener noreferrer"><img src="line.png" className="line-img" /></a>
+</div>
+<a className="addr" href="https://maps.app.goo.gl/m7wQdKVCuVQXgKgL6" target="_blank" rel="noopener noreferrer">
+  <i data-lucide="map-pin"></i>
+  臺中市豐原區水源路7巷192號
+</a>
         <p className="text-[12px] mt-4 opacity-50 tracking-widest">特寵業繁字第 S1140024 號</p>
       </div>
     </section>
   );
 
   // --- 子元件 2：通用條款彈窗 (需滑到底才能同意) ---
-  const TermsModal = ({ title, children, onClose, onAgree }) => {
-    const contentRef = useRef(null);
-    const [canAgree, setCanAgree] = useState(false);
+const TermsModal = ({ title, children, onClose, onAgree }) => {
+  const contentRef = useRef(null);
+  const [canAgree, setCanAgree] = useState(false);
 
-useEffect(() => {
-  setCanAgree(false);
-  setTimeout(() => {
-    const el = contentRef.current;
-    if (el && el.scrollHeight <= el.clientHeight + 10) {
-      setCanAgree(true);
-    }
-  }, 0);
-}, [title]);
+  useEffect(() => {
+    lucide.createIcons();
+    setCanAgree(false);
+    setTimeout(() => {
+      const el = contentRef.current;
+      if (el && el.scrollHeight <= el.clientHeight + 10) {
+        setCanAgree(true);
+      }
+    }, 0);
+  }, [title]);
 
     const handleScroll = (e) => {
       const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -1032,15 +1049,10 @@ const SignatureModal = ({ onSave, onClose }) => {
 
   // --- 子元件 4：專業版契約表單 ---
 const ContractForm = ({ title, type, onBack, onSuccess }) => {
-  useEffect(() => {
-    lucide.createIcons();
-  }, []);
+useEffect(() => {
+  lucide.createIcons();
   
-  // 每次渲染後重新初始化圖示
-  useEffect(() => {
-    lucide.createIcons();
-  });
-const [formData, setFormData] = useState({
+}, []);const [formData, setFormData] = useState({
       ownerName: '', phone: '', idNumber: '', email: '', address: '', ownerSocial: '',
       emerName: '', emerRel: '', emerPhone: '',
       petName: '', breed: '', weight: '', ageYears: '', ageMonths: '', gender: '', neutered: '',
@@ -1502,6 +1514,11 @@ if (!/^[A-Z]\d{9}$/.test((formData.idNumber || '').trim())) {
   alert('請填寫正確身分證字號（格式：A123456789）');
   return;
 }
+const emailRaw = (formData.email || '').trim();
+if (emailRaw && !isValidEmail(emailRaw)) {
+  const goOn = confirm('您填寫的 Email 格式不正確。\n按「確定」將可能無法收到契約副本；按「取消」返回修改。');
+  if (!goOn) return;
+}
   if (!sigImage) {
     alert('請先完成簽名');
     return;
@@ -1649,9 +1666,13 @@ if (failed.length > 0) {
   alert('✅ 表單已送出，但部分信件寄送失敗（可至後台補寄）');
 }
 
+const validCustomerEmail = isValidEmail((formData.email || '').trim())
+  ? (formData.email || '').trim()
+  : '';
+
 const successPayload = {
-  hasEmail: !!(formData.email || '').trim(),
-  email: (formData.email || '').trim(),
+  hasEmail: !!validCustomerEmail,
+  email: validCustomerEmail,
   serviceLabel,
   submitTime,
   contractHtml: html
@@ -1699,7 +1720,7 @@ return;
   <div className="mt-6 border-2 border-dashed border-milk-soft rounded-2xl p-5 space-y-4 relative overflow-hidden">
     
     {/* 步驟 1：點擊加入 */}
-    <a href="https://line.me/R/ti/p/@463mpova" target="_blank" className="flex items-center gap-4 group text-left no-underline transition-transform active:scale-[0.98]">
+<a href="https://line.me/R/ti/p/@463mpova" target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 group text-left no-underline transition-transform active:scale-[0.98]">
       <div className="bg-[#06C755] text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-black shadow-sm shrink-0">1</div>
       <div className="flex-1">
         <p className="font-bold text-ink">點擊加入好友</p>
@@ -2172,9 +2193,9 @@ return;
 
 {/* 上傳證明（疫苗 + 驅蟲） */}
 <div>
-  <label className="text-[12px] font-bold text-sub mb-3 block uppercase tracking-wider">
-    上傳證明（請上傳：1.疫苗注射證明 2.體內外驅蟲證明
-  </label>
+<label className="text-[12px] font-bold text-sub mb-3 block uppercase tracking-wider">
+  上傳證明（請上傳：1.疫苗注射證明 2.體內外驅蟲證明）
+</label>
 
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
     
@@ -3114,7 +3135,7 @@ return;
     }`}
     onClick={() => {
       if (!formData.agreeTerms) {
-        alert('請先閱讀並同意美容條款');
+alert(type === 'boarding' ? '請先閱讀並同意住宿條款' : '請先閱讀並同意美容條款');
         return;
       }
       setShowSig(true);
@@ -3559,7 +3580,6 @@ return;
     );
   };
 // --- Success View (喵之谷風格重製) ---
-// --- Success View (喵之谷風格重製) ---
 const SuccessView = ({ onNavigate }) => {
   const [payload, setPayload] = useState({});
 
@@ -3569,9 +3589,9 @@ const SuccessView = ({ onNavigate }) => {
     lucide.createIcons();
   }, []);
 
-  useEffect(() => {
-    lucide.createIcons();
-  });
+useEffect(() => {
+  lucide.createIcons();
+}, [payload]);
 
   const isMaine = payload?.kind === 'mainecoon';
   const copyLabel = isMaine ? '詢問副本' : '契約副本';
@@ -3638,6 +3658,10 @@ const SuccessView = ({ onNavigate }) => {
   // --- 子元件 5：舊客搜尋 Modal (喵之谷風格) ---
 const HistoryModal = ({ records, onClose, onSelect }) => {
   const [selectedPet, setSelectedPet] = useState(null);
+
+  useEffect(() => {
+    lucide.createIcons();
+  }, [selectedPet, records]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-soosi-dark/40 backdrop-blur-sm animate-in fade-in">
@@ -3739,17 +3763,13 @@ const HistoryModal = ({ records, onClose, onSelect }) => {
 };
 // --- 子元件 6：緬因貓詢問表單 (問卷版) ---
 const MaineCoonForm = ({ onBack, onSuccess }) => {
-  useEffect(() => {
-    lucide.createIcons();
-  }, []);
-  
-  // 每次渲染後重新初始化圖示
-  useEffect(() => {
-    lucide.createIcons();
-  });
-  const [step, setStep] = useState('select'); // ✅ 先選擇頁
+  const [step, setStep] = useState('select');
   const [tab, setTab] = useState('kitten');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    lucide.createIcons();
+  }, [step, tab]); // 建議不用 isSubmitting
 
   const [kitten, setKitten] = useState({
     name: '', gender: '', age: '', contact: '',
@@ -3894,7 +3914,9 @@ const handleSubmit = async () => {
     });
 
     // 只有 contact 含 @ 才視為客戶 email
-    const customerEmail = (sourceData.contact || '').includes('@') ? sourceData.contact : '';
+const customerEmail = isValidEmail(sourceData.contact || '')
+  ? (sourceData.contact || '').trim()
+  : '';
 
     const mailResults = await sendMailCopies({
       html,
@@ -4470,17 +4492,15 @@ const [view, setView] = useState(getHash());
 // ✅ 首頁大 Logo 雙擊判斷（手機/桌機都可用）
 const lastHeroLogoTapRef = useRef(0);
 
-    useEffect(() => {
-      const handlePopState = () => setView(getHash());
-      window.addEventListener('hashchange', handlePopState);
-      lucide.createIcons();
-      return () => window.removeEventListener('hashchange', handlePopState);
-    }, [view]);
-    
-    // 每次渲染後重新初始化圖示
-    useEffect(() => {
-      lucide.createIcons();
-    });
+useEffect(() => {
+  const handlePopState = () => setView(getHash());
+  window.addEventListener('hashchange', handlePopState);
+  return () => window.removeEventListener('hashchange', handlePopState);
+}, []);
+
+useEffect(() => {
+  lucide.createIcons();
+}, [view]);
 
 const navigateTo = (v) => { window.location.hash = v; };
 
@@ -5354,7 +5374,7 @@ const handleHeroLogoTap = (e) => {
 
 /* ========= Maine Coon 高級感統一問卷 UI ========= */
 .survey{
-  font-family:"I.Ming","Noto Sans TC",sans-serif;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","I.Ming",sans-serif;
   color:var(--ink);
 }
 
@@ -5956,20 +5976,7 @@ input, textarea, select {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async function () {
     try {
-      // 先註銷舊的
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for (const r of regs) {
-        await r.unregister();
-      }
-
-      // 清掉舊快取
-      if (window.caches && caches.keys) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
-      }
-
-      // 重新註冊新版本（把 v=10 當版本號）
-      const reg = await navigator.serviceWorker.register('/sw.js?v=12');
+      const reg = await navigator.serviceWorker.register('/sw.js?v=14');
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -5989,7 +5996,7 @@ if ('serviceWorker' in navigator) {
         window.location.reload();
       });
     } catch (e) {
-      console.error('SW 更新失敗：', e);
+      console.error('SW 註冊/更新失敗：', e);
     }
   });
 }
