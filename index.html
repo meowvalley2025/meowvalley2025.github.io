@@ -236,7 +236,7 @@ const joinFilled = (...vals) => {
 };
 
 const buildAttachmentHtml = ({ type, sigUrl, vaccineUrl, dewormUrl, sigTime }) => {
-  const showProofLinks = type === 'boarding';
+  const showProofLinks = (type === 'boarding' || type === 'grooming');
 
   return `
     <div style="margin-top:16px;padding:14px;border:1px solid #ead6c3;border-radius:12px;background:#fff;">
@@ -262,14 +262,12 @@ const buildAttachmentHtml = ({ type, sigUrl, vaccineUrl, dewormUrl, sigTime }) =
             <div style="font-size:13px;line-height:1.9;">
               <div>疫苗證明：${
                 vaccineUrl
-? `<a href="${escHtml(vaccineUrl)}" target="_blank" rel="noopener noreferrer" style="color:#b78963;font-weight:700;">點我查看疫苗證明</a>`
-
+                  ? `<a href="${escHtml(vaccineUrl)}" target="_blank" rel="noopener noreferrer" style="color:#b78963;font-weight:700;">點我查看疫苗證明</a>`
                   : '未提供'
               }</div>
               <div>驅蟲證明：${
                 dewormUrl
-? `<a href="${escHtml(dewormUrl)}" target="_blank" rel="noopener noreferrer" style="color:#b78963;font-weight:700;">點我查看驅蟲證明</a>`
-
+                  ? `<a href="${escHtml(dewormUrl)}" target="_blank" rel="noopener noreferrer" style="color:#b78963;font-weight:700;">點我查看驅蟲證明</a>`
                   : '未提供'
               }</div>
             </div>
@@ -1049,10 +1047,15 @@ const SignatureModal = ({ onSave, onClose }) => {
 
   // --- 子元件 4：專業版契約表單 ---
 const ContractForm = ({ title, type, onBack, onSuccess }) => {
-useEffect(() => {
-  lucide.createIcons();
-  
-}, []);const [formData, setFormData] = useState({
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    });
+  });
+
+  const [formData, setFormData] = useState({
       ownerName: '', phone: '', idNumber: '', email: '', address: '', ownerSocial: '',
       emerName: '', emerRel: '', emerPhone: '',
       petName: '', breed: '', weight: '', ageYears: '', ageMonths: '', gender: '', neutered: '',
@@ -2086,7 +2089,9 @@ return;
 
 <div className="bg-orange-50/60 border border-orange-100/80 rounded-[24px] p-5 flex gap-4 items-start shadow-sm relative overflow-hidden group">
   {/* 背景微裝飾 */}
-  <div className="absolute -right-2 -bottom-2 opacity-5 group-hover:scale-110 transition-transform"><i data-lucide="hospital" className="w-16 h-16 text-orange-900"></i></div>
+  <div className="absolute -right-2 -bottom-2 opacity-[0.4] rotate-12 pointer-events-none">
+    <i data-lucide="cat" className="w-16 h-16 text-[#b78963]"></i>
+  </div>
   <div className="mt-1 bg-white p-2.5 rounded-xl shadow-sm"><i data-lucide="hospital" className="w-5 h-5 text-orange-400"></i></div>
   <div className="relative z-10">
     <p className="text-[12px] font-black text-orange-800 uppercase tracking-widest mb-1.5 flex items-center gap-2">
@@ -2096,6 +2101,65 @@ return;
     <p className="text-[11px] text-orange-800/60 leading-tight">台中市豐原區新生北路59號</p>
   </div>
 </div>
+
+{/* ✅ 美容 / 住宿(含到府) 共用：疫苗 / 驅蟲上傳（放在醫院下面） */}
+{(type === 'grooming' || type === 'boarding') && (
+  <div className="bg-white/60 backdrop-blur-md border border-white rounded-[28px] p-6 mt-6 shadow-sm">
+    <div className="flex items-center gap-2 mb-4 text-milk-deep">
+      <div className="bg-milk-soft/30 p-1.5 rounded-lg">
+        <i data-lucide="image-plus" className="w-4 h-4"></i>
+      </div>
+      <span className="text-xs font-black uppercase tracking-[0.2em]">
+        上傳證明
+      </span>
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* 1. 疫苗注射證明 */}
+      <label className="upload-card">
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files[0];
+            setFormData({ ...formData, vaccineProof: file });
+            setVaccinePreview(file ? URL.createObjectURL(file) : null);
+          }}
+        />
+        <div className="upload-title">① 疫苗注射證明</div>
+        {vaccinePreview ? (
+          <img src={vaccinePreview} className="upload-preview" />
+        ) : (
+          <div className="upload-placeholder">點擊拍照 / 上傳圖片</div>
+        )}
+        <div className="upload-tip">{vaccinePreview ? "重新上傳" : "未上傳"}</div>
+      </label>
+
+      {/* 2. 體內外驅蟲證明 */}
+      <label className="upload-card">
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files[0];
+            setFormData({ ...formData, dewormProof: file });
+            setDewormPreview(file ? URL.createObjectURL(file) : null);
+          }}
+        />
+        <div className="upload-title">② 體內外驅蟲證明</div>
+        {dewormPreview ? (
+          <img src={dewormPreview} className="upload-preview" />
+        ) : (
+          <div className="upload-placeholder">點擊拍照 / 上傳圖片</div>
+        )}
+        <div className="upload-tip">{dewormPreview ? "重新上傳" : "未上傳"}</div>
+      </label>
+    </div>
+  </div>
+)}
           </div>
         </div>
         {type === 'boarding' && (
@@ -2191,60 +2255,7 @@ return;
   />
 </div>
 
-{/* 上傳證明（疫苗 + 驅蟲） */}
-<div>
-<label className="text-[12px] font-bold text-sub mb-3 block uppercase tracking-wider">
-  上傳證明（請上傳：1.疫苗注射證明 2.體內外驅蟲證明）
-</label>
 
-  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    
-    {/* 1. 疫苗注射證明 */}
-    <label className="upload-card">
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files[0];
-          setFormData({ ...formData, vaccineProof: file });
-          setVaccinePreview(file ? URL.createObjectURL(file) : null);
-        }}
-      />
-      <div className="upload-title">① 疫苗注射證明</div>
-      {vaccinePreview ? (
-<img src={vaccinePreview} className="upload-preview" />
-      ) : (
-        <div className="upload-placeholder">點擊拍照 / 上傳圖片</div>
-      )}
-      <div className="upload-tip">{vaccinePreview ? "重新上傳" : "未上傳"}</div>
-    </label>
-
-    {/* 2. 體內外驅蟲證明 */}
-    <label className="upload-card">
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files[0];
-          setFormData({ ...formData, dewormProof: file });
-          setDewormPreview(file ? URL.createObjectURL(file) : null);
-        }}
-      />
-      <div className="upload-title">② 體內外驅蟲證明</div>
-      {dewormPreview ? (
-<img src={dewormPreview} className="upload-preview" />
-      ) : (
-        <div className="upload-placeholder">點擊拍照 / 上傳圖片</div>
-      )}
-      <div className="upload-tip">{dewormPreview ? "重新上傳" : "未上傳"}</div>
-    </label>
-
-  </div>
-</div>
 
 {/* 住宿卡優惠 */}
 <div className="mv-perk-card">
@@ -2631,7 +2642,7 @@ return;
   <div className="flex items-center gap-3 rounded-2xl px-5 py-3 bg-gradient-to-br from-white/95 to-milk-soft/20 border border-white/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_-1px_2px_rgba(0,0,0,0.08)]">
     
     {/* Lucide 圖示 */}
-    <i data-lucide="info" className="w-5 h-5 text-milk-deep"></i>
+    <i data-lucide="circle-alert" className="w-5 h-5 text-milk-deep"></i>
 
     {/* 文字 */}
     <span className="text-sm font-semibold text-milk-deep tracking-wide">
@@ -5976,7 +5987,7 @@ input, textarea, select {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async function () {
     try {
-      const reg = await navigator.serviceWorker.register('/sw.js?v=14');
+      const reg = await navigator.serviceWorker.register('/sw.js?v=15');
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
