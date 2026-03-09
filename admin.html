@@ -1101,11 +1101,12 @@ const Row = ({ label, value }) => {  if (!isDisplayable(value)) return null;
             <div className="mt-3">
               <Block title="到府照顧明細" icon="house-plus">
                 <Row label="服務型態" value={serviceTypeLabel(row.service_type)} />
-                <Row label="餵食頻率" value={row.homecare_freqs} />
-                <Row label="餵食頻率其他" value={row.homecare_freq_other} />
-<Row label="第 1 次餵食時間" value={row.homecare_time1} />
-<Row label="第 2 次餵食時間" value={row.homecare_time2} />
-<Row label="第 3 次餵食時間" value={row.homecare_time3} />
+                <Row label="到府日期" value={row.homecare_date} />
+                <Row label="到府餵食頻率" value={row.homecare_freqs} />
+                <Row label="到府餵食頻率其他" value={row.homecare_freq_other} />
+                <Row label="第 1 次到府時間" value={row.homecare_time1} />
+                <Row label="第 2 次到府時間" value={row.homecare_time2} />
+                <Row label="第 3 次到府時間" value={row.homecare_time3} />
                 <Row label="乾糧份量" value={row.dry_amount} />
                 <Row label="罐頭" value={row.wet_has} />
                 <Row label="罐頭份量" value={row.wet_amount} />
@@ -1380,6 +1381,7 @@ raw
       litter_type: r.litter_type || raw.litterType || raw.litter_type || "",
       churu_consent: raw.churuConsent || "",
 
+      homecare_date: raw.homecareDate || raw.homecare_date || "",
       homecare_freqs: Array.isArray(raw.homecareFreqs) ? raw.homecareFreqs : [],
       homecare_freq_other: raw.homecareFreqOther || "",
       homecare_time1: raw.homecareTime1 || "",
@@ -1841,7 +1843,7 @@ placeholder={pwdTarget === "admin" ? "請輸入管理員舊密碼" : "請輸入�
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js?v=8').then(function (reg) {
+        navigator.serviceWorker.register('/sw.js?v=9').then(function (reg) {
 
           if (reg.waiting) {
             reg.waiting.postMessage({ type: 'SKIP_WAITING' });

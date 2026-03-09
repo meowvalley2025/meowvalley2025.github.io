@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
@@ -284,6 +284,7 @@ const buildBoardingRows = (serviceType, formData) => {
   if (serviceType === 'homecare') {
     return [
       emailRow('服務類型', serviceLabel),
+      emailRow('到府日期', formData.homecareDate),
       emailRow('到府餵食頻率', joinFilled(formData.homecareFreqs, formData.homecareFreqOther)),
       emailRow('到府時間', joinFilled(formData.homecareTime1, formData.homecareTime2, formData.homecareTime3)),
       emailRow('乾糧', formData.dryAmount),
@@ -1077,6 +1078,7 @@ chip: '', chipNum: '', behavior: [], behaviorOther: '',
       supplementHas: '', supplementNote: '',
       litterType: '',
       churuConsent: '',
+      homecareDate: '',
       homecareFreqs: [],
       homecareFreqOther: '',
       homecareTime1: '',
@@ -1488,17 +1490,84 @@ const validateBoardingHealth = () => {
   setMissingBoarding(missing); // 👈 這行關鍵：直接顯示紅框
   return missing;
 };
+const validateHomecareFields = () => {
+  const missing = [];
+
+  if (!formData.address || !formData.address.trim()) missing.push('address');
+  if (!formData.homecareDate) missing.push('homecareDate');
+
+  if (!formData.homecareFreqs || formData.homecareFreqs.length === 0) {
+    missing.push('homecareFreqs');
+  }
+
+  if (
+    formData.homecareFreqs?.includes('其他') &&
+    (!formData.homecareFreqOther || !formData.homecareFreqOther.trim())
+  ) {
+    missing.push('homecareFreqOther');
+  }
+
+  if (formData.homecareFreqs?.includes('一天一次')) {
+    if (!formData.homecareTime1) missing.push('homecareTime1');
+  }
+
+  if (formData.homecareFreqs?.includes('一天兩次')) {
+    if (!formData.homecareTime1) missing.push('homecareTime1');
+    if (!formData.homecareTime2) missing.push('homecareTime2');
+  }
+
+  if (formData.homecareFreqs?.includes('一天三次')) {
+    if (!formData.homecareTime1) missing.push('homecareTime1');
+    if (!formData.homecareTime2) missing.push('homecareTime2');
+    if (!formData.homecareTime3) missing.push('homecareTime3');
+  }
+
+  if (!formData.dryAmount || !formData.dryAmount.trim()) missing.push('dryAmount');
+
+  if (!formData.wetHas) missing.push('wetHas');
+  if (formData.wetHas === '有' && (!formData.wetAmount || !formData.wetAmount.trim())) {
+    missing.push('wetAmount');
+  }
+
+  if (!formData.snackHas) missing.push('snackHas');
+  if (formData.snackHas === '有' && !formData.snackType) {
+    missing.push('snackType');
+  }
+
+  if (!formData.supplementHas) missing.push('supplementHas');
+  if (formData.supplementHas === '有' && (!formData.supplementNote || !formData.supplementNote.trim())) {
+    missing.push('supplementNote');
+  }
+
+  if (!formData.specialCareHas) missing.push('specialCareHas');
+  if (formData.specialCareHas === '有' && (!formData.specialCareNote || !formData.specialCareNote.trim())) {
+    missing.push('specialCareNote');
+  }
+
+  setMissingBoarding(missing);
+  return missing;
+};
 const handleFinalSubmit = async () => {
     if (typeof buildContractEmailHtml !== 'function') {
     console.error('buildContractEmailHtml 型別：', typeof buildContractEmailHtml);
     alert('系統尚未載入最新版本（buildContractEmailHtml）。請重新整理後再試。');
     return;
   }
+
   // ✅ 入住前健康規範必填驗證
   if (type === 'boarding' && formData.serviceType === 'boarding') {
     const missing = validateBoardingHealth();
     if (missing.length > 0) {
-      alert('⚠️ 入住前健康與規範確認尚未填寫完整：\n' + missing.join('、'));
+      alert('⚠️ 入住前健康與規範確認尚未填寫完整，請檢查紅框欄位。');
+      return;
+    }
+  }
+
+  // ✅ 到府照顧必填驗證
+  if (type === 'boarding' && formData.serviceType === 'homecare') {
+    const missing = validateHomecareFields();
+    if (missing.length > 0) {
+      alert('⚠️ 到府照顧資料尚未填寫完整，請檢查紅框欄位。');
       return;
     }
   }
@@ -1875,13 +1944,14 @@ return;
     {/* 通訊地址 */}
     <div className="form-group">
       <label className="text-[12px] font-bold text-sub ml-1 mb-1.5 block uppercase tracking-wider">通訊地址 / Address<span className="text-red-500">*</span></label>
-      <input 
-        type="text" 
-        {...bind('address')}
-        placeholder="請填寫完整地址" 
-        className="w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner" 
-      />
-    </div>
+<input 
+  type="text"
+  name="address"
+  value={formData.address}
+  onChange={(e) => setField({ address: e.target.value }, ['address'])}
+  placeholder="請填寫完整地址" 
+  className={`w-full bg-white/50 border border-milk-soft rounded-xl p-3.5 text-sm outline-none focus:border-milk-deep focus:bg-white transition-all shadow-inner ${isMissing('address') ? 'input-missing' : ''}`}
+/>    </div>
 
     {/* 緊急聯絡人區塊 */}
     <div className="mt-8 pt-6 border-t border-milk-soft/50">
@@ -2428,98 +2498,113 @@ return;
       <span className="text-xs font-black uppercase tracking-[0.2em]">到府照顧內容</span>
     </div>
 
-{/* 餵食頻率 */}
-<div>
-  <label className="text-[12px] font-bold text-sub mb-2 block uppercase tracking-wider">
-    餵食頻率（可複選）<span className="text-red-500">*</span>
-  </label>
+    {/* 到府日期 */}
+    <div className={`${isMissing('homecareDate') ? 'field-missing rounded-2xl p-3' : ''}`}>
+      <label className="text-[12px] font-bold text-sub mb-2 block uppercase tracking-wider">
+        到府日期<span className="text-red-500">*</span>
+      </label>
+      <input
+        type="date"
+        name="homecareDate"
+        className={`w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('homecareDate') ? 'input-missing' : ''}`}
+        value={formData.homecareDate}
+        onChange={(e) => setField({ homecareDate: e.target.value }, ['homecareDate'])}
+      />
+    </div>
 
-  <div className="grid grid-cols-2 gap-2">
-    {['一天一次', '一天兩次', '一天三次', '其他'].map(val => (
-      <button
-        key={val}
-        type="button"
-        onClick={() => toggleHomecareFreq(val)}
-        className={`btn-choice ${formData.homecareFreqs?.includes(val) ? 'active' : ''}`}
-      >
-        {val}
-      </button>
-    ))}
-  </div>
+    {/* 到府餵食頻率 */}
+    <div className={`${isMissing('homecareFreqs') || isMissing('homecareFreqOther') || isMissing('homecareTime1') || isMissing('homecareTime2') || isMissing('homecareTime3') ? 'field-missing rounded-2xl p-3' : ''}`}>
+      <label className="text-[12px] font-bold text-sub mb-2 block uppercase tracking-wider">
+        到府餵食頻率（可複選）<span className="text-red-500">*</span>
+      </label>
 
-  {/* 其他輸入框 */}
-  {formData.homecareFreqs?.includes('其他') && (
-    <input
-      type="text"
-      name="homecareFreqOther"
-      placeholder="請說明餵食習慣"
-      className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-      value={formData.homecareFreqOther}
-      onChange={handleChange}
-    />
-  )}
+      <div className="grid grid-cols-2 gap-2">
+        {['一天一次', '一天兩次', '一天三次', '其他'].map(val => (
+          <button
+            key={val}
+            type="button"
+            onClick={() => {
+              toggleHomecareFreq(val);
+              setMissingBoarding(prev => prev.filter(k => k !== 'homecareFreqs'));
+            }}
+            className={`btn-choice ${formData.homecareFreqs?.includes(val) ? 'active' : ''} ${isMissing('homecareFreqs') ? 'btn-missing' : ''}`}
+          >
+            {val}
+          </button>
+        ))}
+      </div>
 
-  {/* 時間輸入 */}
-  {(formData.homecareFreqs?.includes('一天一次') ||
-    formData.homecareFreqs?.includes('一天兩次') ||
-    formData.homecareFreqs?.includes('一天三次')) && (
-    <div className="mt-3 grid grid-cols-1 gap-2">
-      {formData.homecareFreqs?.includes('一天三次') ? (
-        <>
-          <input
-            type="time"
-            name="homecareTime1"
-            className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            value={formData.homecareTime1}
-            onChange={handleChange}
-          />
-          <input
-            type="time"
-            name="homecareTime2"
-            className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            value={formData.homecareTime2}
-            onChange={handleChange}
-          />
-          <input
-            type="time"
-            name="homecareTime3"
-            className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            value={formData.homecareTime3}
-            onChange={handleChange}
-          />
-        </>
-      ) : formData.homecareFreqs?.includes('一天兩次') ? (
-        <>
-          <input
-            type="time"
-            name="homecareTime1"
-            className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            value={formData.homecareTime1}
-            onChange={handleChange}
-          />
-          <input
-            type="time"
-            name="homecareTime2"
-            className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-            value={formData.homecareTime2}
-            onChange={handleChange}
-          />
-        </>
-      ) : (
+      {formData.homecareFreqs?.includes('其他') && (
         <input
-          type="time"
-          name="homecareTime1"
-          className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
-          value={formData.homecareTime1}
-          onChange={handleChange}
+          type="text"
+          name="homecareFreqOther"
+          placeholder="請說明到府餵食習慣"
+          className={`mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('homecareFreqOther') ? 'input-missing' : ''}`}
+          value={formData.homecareFreqOther}
+          onChange={(e) => setField({ homecareFreqOther: e.target.value }, ['homecareFreqOther'])}
         />
       )}
+
+      {(formData.homecareFreqs?.includes('一天一次') ||
+        formData.homecareFreqs?.includes('一天兩次') ||
+        formData.homecareFreqs?.includes('一天三次')) && (
+        <div className="mt-3 grid grid-cols-1 gap-2">
+          {formData.homecareFreqs?.includes('一天三次') ? (
+            <>
+              <input
+                type="time"
+                name="homecareTime1"
+                className={`w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('homecareTime1') ? 'input-missing' : ''}`}
+                value={formData.homecareTime1}
+                onChange={(e) => setField({ homecareTime1: e.target.value }, ['homecareTime1'])}
+              />
+              <input
+                type="time"
+                name="homecareTime2"
+                className={`w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('homecareTime2') ? 'input-missing' : ''}`}
+                value={formData.homecareTime2}
+                onChange={(e) => setField({ homecareTime2: e.target.value }, ['homecareTime2'])}
+              />
+              <input
+                type="time"
+                name="homecareTime3"
+                className={`w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('homecareTime3') ? 'input-missing' : ''}`}
+                value={formData.homecareTime3}
+                onChange={(e) => setField({ homecareTime3: e.target.value }, ['homecareTime3'])}
+              />
+            </>
+          ) : formData.homecareFreqs?.includes('一天兩次') ? (
+            <>
+              <input
+                type="time"
+                name="homecareTime1"
+                className={`w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('homecareTime1') ? 'input-missing' : ''}`}
+                value={formData.homecareTime1}
+                onChange={(e) => setField({ homecareTime1: e.target.value }, ['homecareTime1'])}
+              />
+              <input
+                type="time"
+                name="homecareTime2"
+                className={`w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('homecareTime2') ? 'input-missing' : ''}`}
+                value={formData.homecareTime2}
+                onChange={(e) => setField({ homecareTime2: e.target.value }, ['homecareTime2'])}
+              />
+            </>
+          ) : (
+            <input
+              type="time"
+              name="homecareTime1"
+              className={`w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('homecareTime1') ? 'input-missing' : ''}`}
+              value={formData.homecareTime1}
+              onChange={(e) => setField({ homecareTime1: e.target.value }, ['homecareTime1'])}
+            />
+          )}
+        </div>
+      )}
     </div>
-  )}
-</div>
 
     {/* 乾糧 */}
-    <div>
+    <div className={`${isMissing('dryAmount') ? 'field-missing rounded-2xl p-3' : ''}`}>
       <label className="text-[12px] font-bold text-sub mb-1 block">
         乾糧<span className="text-red-500">*</span>
       </label>
@@ -2527,22 +2612,25 @@ return;
         type="text"
         name="dryAmount"
         placeholder="一次餵食量"
-        className="w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+        className={`w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('dryAmount') ? 'input-missing' : ''}`}
         value={formData.dryAmount}
-        onChange={handleChange}
+        onChange={(e) => setField({ dryAmount: e.target.value }, ['dryAmount'])}
       />
     </div>
 
     {/* 罐頭 */}
-    <div>
+    <div className={`${isMissing('wetHas') || isMissing('wetAmount') ? 'field-missing rounded-2xl p-3' : ''}`}>
       <label className="text-[12px] font-bold text-sub mb-1 block">
         罐頭<span className="text-red-500">*</span>
       </label>
       <div className="grid grid-cols-2 gap-2">
         {['有','無'].map(val => (
-          <button key={val} type="button"
-            onClick={() => setFormData({ ...formData, wetHas: val })}
-            className={`btn-choice ${formData.wetHas===val?'active':''}`}>
+          <button
+            key={val}
+            type="button"
+            onClick={() => setField({ wetHas: val }, ['wetHas'])}
+            className={`btn-choice ${formData.wetHas===val?'active':''} ${isMissing('wetHas') ? 'btn-missing' : ''}`}
+          >
             {val}
           </button>
         ))}
@@ -2552,23 +2640,26 @@ return;
           type="text"
           name="wetAmount"
           placeholder="一次餵食量"
-          className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+          className={`mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('wetAmount') ? 'input-missing' : ''}`}
           value={formData.wetAmount}
-          onChange={handleChange}
+          onChange={(e) => setField({ wetAmount: e.target.value }, ['wetAmount'])}
         />
       )}
     </div>
 
     {/* 點心 */}
-    <div>
+    <div className={`${isMissing('snackHas') || isMissing('snackType') ? 'field-missing rounded-2xl p-3' : ''}`}>
       <label className="text-[12px] font-bold text-sub mb-1 block">
         點心<span className="text-red-500">*</span>
       </label>
       <div className="grid grid-cols-2 gap-2">
         {['有','無'].map(val => (
-          <button key={val} type="button"
-            onClick={() => setFormData({ ...formData, snackHas: val })}
-            className={`btn-choice ${formData.snackHas===val?'active':''}`}>
+          <button
+            key={val}
+            type="button"
+            onClick={() => setField({ snackHas: val }, ['snackHas'])}
+            className={`btn-choice ${formData.snackHas===val?'active':''} ${isMissing('snackHas') ? 'btn-missing' : ''}`}
+          >
             {val}
           </button>
         ))}
@@ -2576,9 +2667,12 @@ return;
       {formData.snackHas === '有' && (
         <div className="mt-2 grid grid-cols-3 gap-2">
           {['肉泥','凍乾','其他'].map(val => (
-            <button key={val} type="button"
-              onClick={() => setFormData({ ...formData, snackType: val })}
-              className={`btn-choice ${formData.snackType===val?'active':''}`}>
+            <button
+              key={val}
+              type="button"
+              onClick={() => setField({ snackType: val }, ['snackType'])}
+              className={`btn-choice ${formData.snackType===val?'active':''} ${isMissing('snackType') ? 'btn-missing' : ''}`}
+            >
               {val}
             </button>
           ))}
@@ -2587,15 +2681,18 @@ return;
     </div>
 
     {/* 保健品 */}
-    <div>
+    <div className={`${isMissing('supplementHas') || isMissing('supplementNote') ? 'field-missing rounded-2xl p-3' : ''}`}>
       <label className="text-[12px] font-bold text-sub mb-1 block">
         保健品<span className="text-red-500">*</span>
       </label>
       <div className="grid grid-cols-2 gap-2">
         {['有','無'].map(val => (
-          <button key={val} type="button"
-            onClick={() => setFormData({ ...formData, supplementHas: val })}
-            className={`btn-choice ${formData.supplementHas===val?'active':''}`}>
+          <button
+            key={val}
+            type="button"
+            onClick={() => setField({ supplementHas: val }, ['supplementHas'])}
+            className={`btn-choice ${formData.supplementHas===val?'active':''} ${isMissing('supplementHas') ? 'btn-missing' : ''}`}
+          >
             {val}
           </button>
         ))}
@@ -2605,23 +2702,26 @@ return;
           type="text"
           name="supplementNote"
           placeholder="品項 / 頻率 / 量"
-          className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+          className={`mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('supplementNote') ? 'input-missing' : ''}`}
           value={formData.supplementNote}
-          onChange={handleChange}
+          onChange={(e) => setField({ supplementNote: e.target.value }, ['supplementNote'])}
         />
       )}
     </div>
 
     {/* 特殊照顧 */}
-    <div>
+    <div className={`${isMissing('specialCareHas') || isMissing('specialCareNote') ? 'field-missing rounded-2xl p-3' : ''}`}>
       <label className="text-[12px] font-bold text-sub mb-1 block">
         特殊照顧服務（另報價）<span className="text-red-500">*</span>
       </label>
       <div className="grid grid-cols-2 gap-2">
         {['有','無'].map(val => (
-          <button key={val} type="button"
-            onClick={() => setFormData({ ...formData, specialCareHas: val })}
-            className={`btn-choice ${formData.specialCareHas===val?'active':''}`}>
+          <button
+            key={val}
+            type="button"
+            onClick={() => setField({ specialCareHas: val }, ['specialCareHas'])}
+            className={`btn-choice ${formData.specialCareHas===val?'active':''} ${isMissing('specialCareHas') ? 'btn-missing' : ''}`}
+          >
             {val}
           </button>
         ))}
@@ -2631,25 +2731,21 @@ return;
           type="text"
           name="specialCareNote"
           placeholder="請填寫特殊照顧內容"
-          className="mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm"
+          className={`mt-2 w-full bg-white/60 border border-milk-soft rounded-xl p-3 text-sm ${isMissing('specialCareNote') ? 'input-missing' : ''}`}
           value={formData.specialCareNote}
-          onChange={handleChange}
+          onChange={(e) => setField({ specialCareNote: e.target.value }, ['specialCareNote'])}
         />
       )}
     </div>
 
-<div className="rounded-2xl p-[1.5px] bg-gradient-to-br from-white/90 to-milk-soft/50 shadow-md">
-  <div className="flex items-center gap-3 rounded-2xl px-5 py-3 bg-gradient-to-br from-white/95 to-milk-soft/20 border border-white/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_-1px_2px_rgba(0,0,0,0.08)]">
-    
-    {/* Lucide 圖示 */}
-    <i data-lucide="circle-alert" className="w-5 h-5 text-milk-deep"></i>
-
-    {/* 文字 */}
-    <span className="text-sm font-semibold text-milk-deep tracking-wide">
-      價格：依地區報價
-    </span>
-  </div>
-</div>
+    <div className="rounded-2xl p-[1.5px] bg-gradient-to-br from-white/90 to-milk-soft/50 shadow-md">
+      <div className="flex items-center gap-3 rounded-2xl px-5 py-3 bg-gradient-to-br from-white/95 to-milk-soft/20 border border-white/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_-1px_2px_rgba(0,0,0,0.08)]">
+        <i data-lucide="circle-alert" className="w-5 h-5 text-milk-deep"></i>
+        <span className="text-sm font-semibold text-milk-deep tracking-wide">
+          價格：依地區報價
+        </span>
+      </div>
+    </div>
   </div>
 )}
 
@@ -5987,7 +6083,7 @@ input, textarea, select {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async function () {
     try {
-      const reg = await navigator.serviceWorker.register('/sw.js?v=15');
+      const reg = await navigator.serviceWorker.register('/sw.js?v=16');
 
       if (reg.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
