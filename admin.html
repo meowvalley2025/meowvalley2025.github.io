@@ -1468,9 +1468,16 @@ raw
         if (!isAdmin) return;
         if (!confirm(`確定刪除這筆資料嗎？\n${row.id}`)) return;
 
-        const { error } = await supabase.from(row.table).delete().eq("id", row.id);
+        const { data, error } = await supabase.from(row.table).delete().eq("id", row.id).select("id");
         if (error) {
           alert("刪除失敗：" + error.message);
+          return;
+        }
+        if (!data || data.length === 0) {
+          alert(
+            "刪除未生效（資料仍在）。常見原因：RLS 未允許 DELETE。\n" +
+              "請在 Supabase 為該表新增「管理員可刪除」的 DELETE policy，並參考 repo 內 ref/supabase/table_schema/policies/delete_admin_only.sql。"
+          );
           return;
         }
         alert("刪除成功");
