@@ -325,6 +325,7 @@ const buildBoardingHealthRows = (formData) => {
     emailRow('傳染風險清潔費同意', formData.boardingInfectionAck),
     emailRow('是否剪指甲', formData.boardingNailTrim),
     emailRow('近期剪指甲時間', formData.boardingNailTrimDate),
+    emailRow('從出生到現在是否完成3劑疫苗施打', formData.boardingVaccine3DosesComplete),
     emailRow('一年內是否施打疫苗', formData.boardingVaccinated),
     emailRow('疫苗種類', formData.boardingVaccineTypes),
     emailRow('是否結紮', formData.boardingNeuteredConfirm),
@@ -1099,6 +1100,7 @@ chip: '', chipNum: '', behavior: [], behaviorOther: '',
       boardingInfectionAck: false,
       boardingNailTrim: '',
       boardingNailTrimDate: '',
+      boardingVaccine3DosesComplete: '',
       boardingVaccinated: '',
       boardingVaccineTypes: [],
       boardingNeuteredConfirm: '',
@@ -1435,6 +1437,7 @@ const handleApplyHistory = (record) => {
       boardingInfectionAck: typeof record.boardingInfectionAck === 'boolean' ? record.boardingInfectionAck : prev.boardingInfectionAck,
       boardingNailTrim: pick(record.boardingNailTrim, prev.boardingNailTrim),
       boardingNailTrimDate: pick(record.boardingNailTrimDate, prev.boardingNailTrimDate),
+      boardingVaccine3DosesComplete: pick(record.boardingVaccine3DosesComplete, prev.boardingVaccine3DosesComplete),
       boardingVaccinated: pick(record.boardingVaccinated, prev.boardingVaccinated),
       boardingVaccineTypes: Array.isArray(record.boardingVaccineTypes) ? record.boardingVaccineTypes : (prev.boardingVaccineTypes || []),
       boardingNeuteredConfirm: pick(record.boardingNeuteredConfirm, prev.boardingNeuteredConfirm),
@@ -1472,6 +1475,8 @@ const validateBoardingHealth = () => {
 
   if (!formData.boardingNailTrim) missing.push('nailTrim');
   if (formData.boardingNailTrim === '是' && !formData.boardingNailTrimDate?.trim()) missing.push('nailTrimDate');
+
+  if (!formData.boardingVaccine3DosesComplete) missing.push('vaccine3Doses');
 
   if (!formData.boardingVaccinated) missing.push('vaccinated');
   if (formData.boardingVaccinated === '是' && (!formData.boardingVaccineTypes || formData.boardingVaccineTypes.length === 0))
@@ -3009,9 +3014,25 @@ return;
   </div>
 </div>
 
-{/* 6. 疫苗 */}
+{/* 6. 出生至今完成三劑疫苗 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('vaccine3Doses') ? 'field-missing' : ''}`}>
+  <p className="font-bold mb-2">6．從出生到現在是否完成3劑疫苗施打？<span className="text-red-500">*</span></p>
+  <div className="grid grid-cols-2 gap-2">
+    {['是','否'].map(val => (
+      <button key={val} type="button"
+        onClick={() => setField({ boardingVaccine3DosesComplete: val }, ['vaccine3Doses'])}
+        className={`btn-choice ${formData.boardingVaccine3DosesComplete===val?'active':''} ${isMissing('vaccine3Doses')?'btn-missing':''}`}
+      >{val}</button>
+    ))}
+  </div>
+  <div className="note-box mt-2">
+    請依實際狀況選擇；與「一年內是否施打疫苗」為不同問題。
+  </div>
+</div>
+
+{/* 7. 一年內疫苗 */}
 <div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('vaccinated')||isMissing('vaccineTypes')?'field-missing':''}`}>
-  <p className="font-bold mb-2">6．一年內是否施打疫苗？<span className="text-red-500">*</span></p>
+  <p className="font-bold mb-2">7．一年內是否施打疫苗？<span className="text-red-500">*</span></p>
   <div className="grid grid-cols-2 gap-2">
     {['是','否'].map(val => (
       <button key={val} type="button"
@@ -3039,9 +3060,9 @@ return;
   </div>
 </div>
 
-{/* 7. 結紮/發情 */}
+{/* 8. 結紮/發情 */}
 <div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('neutered')||isMissing('inHeat')?'field-missing':''}`}>
-  <p className="font-bold mb-2">7．是否結紮？<span className="text-red-500">*</span></p>
+  <p className="font-bold mb-2">8．是否結紮？<span className="text-red-500">*</span></p>
   <div className="grid grid-cols-2 gap-2 mb-3">
     {['是','否'].map(val => (
       <button key={val} type="button"
@@ -3067,9 +3088,9 @@ return;
   </div>
 </div>
 
-{/* 8. 懷孕 */}
+{/* 9. 懷孕 */}
 <div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('pregnant')?'field-missing':''}`}>
-  <p className="font-bold mb-2">8．是否懷孕？<span className="text-red-500">*</span></p>
+  <p className="font-bold mb-2">9．是否懷孕？<span className="text-red-500">*</span></p>
   <div className="grid grid-cols-2 gap-2">
     {['是','否'].map(val => (
       <button key={val} type="button"
@@ -3083,9 +3104,9 @@ return;
   </div>
 </div>
 
-{/* 9. 延時費用 */}
+{/* 10. 延時費用 */}
 <div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('lateFee')?'field-missing':''}`}>
-  <p className="font-bold mb-2">9．延時費用同意<span className="text-red-500">*</span></p>
+  <p className="font-bold mb-2">10．延時費用同意<span className="text-red-500">*</span></p>
   <button type="button"
     onClick={() => setField({ boardingLateFeeAck: !formData.boardingLateFeeAck }, ['lateFee'])}
     className={`btn-choice w-full ${formData.boardingLateFeeAck?'active':''} ${isMissing('lateFee')?'btn-missing':''}`}

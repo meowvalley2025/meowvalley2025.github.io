@@ -1085,6 +1085,7 @@ const Row = ({ label, value }) => {  if (!isDisplayable(value)) return null;
                 <Row label="傳染風險清潔費同意" value={row.boarding_infection_ack} />
                 <Row label="是否剪指甲" value={row.boarding_nail_trim} />
                 <Row label="剪指甲時間" value={row.boarding_nail_trim_date} />
+                <Row label="從出生到現在是否完成3劑疫苗施打" value={row.boarding_vaccine_3_doses_complete} />
                 <Row label="一年內施打疫苗" value={row.boarding_vaccinated} />
                 <Row label="疫苗類型" value={row.boarding_vaccine_types} />
                 <Row label="是否結紮" value={row.boarding_neutered_confirm} />
@@ -1403,6 +1404,7 @@ raw
         raw.boardingInfectionAck === false ? false : null,
       boarding_nail_trim: raw.boardingNailTrim || "",
       boarding_nail_trim_date: raw.boardingNailTrimDate || "",
+      boarding_vaccine_3_doses_complete: raw.boardingVaccine3DosesComplete || "",
       boarding_vaccinated: raw.boardingVaccinated || "",
       boarding_vaccine_types: Array.isArray(raw.boardingVaccineTypes) ? raw.boardingVaccineTypes : [],
       boarding_neutered_confirm: raw.boardingNeuteredConfirm || "",
