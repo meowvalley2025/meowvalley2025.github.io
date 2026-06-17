@@ -1495,7 +1495,7 @@ raw
         if (!data || data.length === 0) {
           alert(
             "刪除未生效（資料仍在）。常見原因：RLS 未允許 DELETE。\n" +
-              "請在 Supabase 為該表新增「管理員可刪除」的 DELETE policy，並參考 repo 內 ref/supabase/table_schema/policies/delete_admin_only.sql。"
+              "請在 Supabase 為該表新增「管理員可刪除」的 DELETE policy（僅允許管理員信箱執行 DELETE）。"
           );
           return;
         }

@@ -1,0 +1,5 @@
+# 本機對照用 Supabase 參考檔（含 schema / function / policy），勿推上公開 repo
+ref/
+
+# Cursor 本機設定
+.cursor/
