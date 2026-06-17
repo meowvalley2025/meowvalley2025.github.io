@@ -22,7 +22,20 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.10/babel.min.js"></script>
+  <script>
+    Babel.registerPreset('react-classic', function () {
+      return {
+        presets: [
+          [Babel.availablePresets.react, {
+            runtime: 'classic',
+            pragma: 'React.createElement',
+            pragmaFrag: 'React.Fragment'
+          }]
+        ]
+      };
+    });
+  </script>
 
   <script>
     tailwind.config = {
@@ -687,15 +700,21 @@
 </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div style="text-align:center;padding:2.5rem 1rem;color:#8a7f74;font-family:'Noto Sans TC',sans-serif;">
+      <p style="font-weight:800;margin:0 0 8px;">載入中...</p>
+      <p style="font-size:13px;margin:0;">若超過 10 秒仍空白，請點下方重新整理</p>
+      <button type="button" onclick="location.reload()" style="margin-top:14px;padding:8px 14px;border-radius:10px;border:1px solid #e8d8c8;background:#fff;color:#b78963;font-weight:800;cursor:pointer;">重新整理</button>
+    </div>
+  </div>
 
-  <script type="text/babel">
+  <script type="text/babel" data-presets="react-classic">
     const { useEffect, useMemo, useRef, useState } = React;
 
-    // ===== Supabase =====
+    // ===== Supabase（sbClient 避免與 UMD 全域 supabase 衝突）=====
     const supabaseUrl = "https://iqhalbrbivruokxxgycw.supabase.co";
     const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxaGFsYnJiaXZydW9reHhneWN3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NjI3NTcsImV4cCI6MjA4NjEzODc1N30.bbam-b8GABkUqHbvic3JEXjySLQzvYynD3aG-MnfYow";
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    const sbClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     const ADMIN_EMAIL = "meow.valley2025@gmail.com";
     const STAFF_EMAIL = "meow.valley2025@staff.com";
@@ -780,7 +799,7 @@ const isDisplayable = (v) => {
         if (!modeEmail) return setErr("請先選擇登入身分");
         setLoading(true);
 
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error } = await sbClient.auth.signInWithPassword({
           email: modeEmail,
           password
         });
@@ -1238,9 +1257,9 @@ const fetchAll = async () => {
   setFetchError("");
 
   const [g, b, m] = await Promise.all([
-    supabase.from("grooming_bookings").select("*"),
-    supabase.from("boarding_bookings").select("*"),
-    supabase.from("mainecoon_inquiries").select("*")
+    sbClient.from("grooming_bookings").select("*"),
+    sbClient.from("boarding_bookings").select("*"),
+    sbClient.from("mainecoon_inquiries").select("*")
   ]);
 
   console.log("grooming err:", g.error, "rows:", g.data?.length);
@@ -1468,7 +1487,7 @@ raw
         if (!isAdmin) return;
         if (!confirm(`確定刪除這筆資料嗎？\n${row.id}`)) return;
 
-        const { data, error } = await supabase.from(row.table).delete().eq("id", row.id).select("id");
+        const { data, error } = await sbClient.from(row.table).delete().eq("id", row.id).select("id");
         if (error) {
           alert("刪除失敗：" + error.message);
           return;
@@ -1485,7 +1504,7 @@ raw
         fetchAll();
       };
       const handleSaveInternalNote = async (row, noteText) => {
-  const { error } = await supabase
+  const { error } = await sbClient
     .from(row.table)
     .update({ internal_note: noteText })
     .eq("id", row.id);
@@ -1557,13 +1576,13 @@ const handleChangePassword = async (e) => {
   setPwdLoading(true);
 
   // 先保存目前（管理員）session，改員工密碼後再切回來
-  const { data: sData } = await supabase.auth.getSession();
+  const { data: sData } = await sbClient.auth.getSession();
   const adminSessionBackup = sData?.session || null;
 
   const targetEmail = pwdTarget === "admin" ? ADMIN_EMAIL : STAFF_EMAIL;
 
   // 1) 用「目標帳號 + 舊密碼」驗證
-  const { error: verifyError } = await supabase.auth.signInWithPassword({
+  const { error: verifyError } = await sbClient.auth.signInWithPassword({
     email: targetEmail,
     password: oldPassword
   });
@@ -1575,7 +1594,7 @@ const handleChangePassword = async (e) => {
   }
 
   // 2) 目前登入已切成目標帳號，直接改該帳號密碼
-  const { error: updateError } = await supabase.auth.updateUser({
+  const { error: updateError } = await sbClient.auth.updateUser({
     password: newPassword
   });
 
@@ -1587,7 +1606,7 @@ const handleChangePassword = async (e) => {
 
   // 3) 若改的是員工，切回管理員 session
   if (pwdTarget === "staff" && adminSessionBackup?.access_token && adminSessionBackup?.refresh_token) {
-    const { error: restoreErr } = await supabase.auth.setSession({
+    const { error: restoreErr } = await sbClient.auth.setSession({
       access_token: adminSessionBackup.access_token,
       refresh_token: adminSessionBackup.refresh_token
     });
@@ -1596,7 +1615,7 @@ const handleChangePassword = async (e) => {
       setPwdLoading(false);
       setPwdOk("員工密碼已修改成功，請重新登入管理員");
       setTimeout(async () => {
-        await supabase.auth.signOut();
+        await sbClient.auth.signOut();
         onSignOut();
       }, 900);
       return;
@@ -1638,7 +1657,7 @@ const handleChangePassword = async (e) => {
   <button
     className="mv-top-link"
     onClick={async () => {
-      await supabase.auth.signOut();
+      await sbClient.auth.signOut();
       onSignOut();
     }}
   >
@@ -1821,12 +1840,12 @@ placeholder={pwdTarget === "admin" ? "請輸入管理員舊密碼" : "請輸入�
       const [checking, setChecking] = useState(true);
 
       useEffect(() => {
-        supabase.auth.getSession().then(({ data }) => {
+        sbClient.auth.getSession().then(({ data }) => {
           setSession(data.session);
           setChecking(false);
         });
 
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
+        const { data: listener } = sbClient.auth.onAuthStateChange((_event, s) => {
           setSession(s);
         });
 
@@ -1837,7 +1856,7 @@ placeholder={pwdTarget === "admin" ? "請輸入管理員舊密碼" : "請輸入�
 
       // 保護：不是指定帳號就登出
       if (session?.user?.email && ![ADMIN_EMAIL, STAFF_EMAIL].includes(session.user.email)) {
-        supabase.auth.signOut();
+        sbClient.auth.signOut();
         return <LoginView onLoggedIn={()=>window.location.reload()} />;
       }
 
@@ -1846,7 +1865,12 @@ placeholder={pwdTarget === "admin" ? "請輸入管理員舊密碼" : "請輸入�
         : <LoginView onLoggedIn={()=>window.location.reload()} />;
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    const rootEl = document.getElementById("root");
+    if (rootEl) {
+      ReactDOM.createRoot(rootEl).render(<App />);
+    } else {
+      console.error("找不到 #root");
+    }
   </script>
 
   <script>
