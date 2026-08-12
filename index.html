@@ -1637,7 +1637,7 @@ if (emailRaw && !isValidEmail(emailRaw)) {
     return;
   }
   if ((type === 'grooming' || type === 'boarding') && !formData.agreePhotoCommercial) {
-    alert('請選擇：同意或不同意「無償給店家拍攝並上傳公開網路分享及商用」');
+    alert('請選擇：同意或不同意「是否同意無償給店家拍攝並上傳公開網路分享及商用」');
     return;
   }
 
@@ -2782,7 +2782,7 @@ return;
     {/* 拍攝／公開／商用 */}
     <div className={`${isMissing('photoCommercial') ? 'field-missing rounded-2xl p-3' : ''}`}>
       <label className="text-[12px] font-bold text-sub mb-2 block">
-        無償給店家拍攝並上傳公開網路分享及商用<span className="text-red-500">*</span>
+        是否同意無償給店家拍攝並上傳公開網路分享及商用<span className="text-red-500">*</span>
       </label>
       <div className="grid grid-cols-2 gap-2">
         {['同意','不同意'].map(val => (
@@ -3214,7 +3214,7 @@ return;
 
 {/* 13. 拍攝／公開／商用 */}
 <div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('photoCommercial')?'field-missing':''}`}>
-  <p className="font-bold mb-2">13．無償給店家拍攝並上傳公開網路分享及商用<span className="text-red-500">*</span></p>
+  <p className="font-bold mb-2">13．是否同意無償給店家拍攝並上傳公開網路分享及商用<span className="text-red-500">*</span></p>
   <div className="grid grid-cols-2 gap-2">
     {['同意','不同意'].map(val => (
       <button key={val} type="button"
@@ -3320,7 +3320,7 @@ return;
 {(type === 'grooming') && (
   <div className={`w-full p-4 rounded-2xl border-2 ${isMissing('photoCommercial') ? 'border-red-200 bg-red-50/40' : 'border-milk-soft bg-white'}`}>
     <p className="font-bold text-sm text-ink leading-relaxed mb-3">
-      無償給店家拍攝並上傳公開網路分享及商用
+      是否同意無償給店家拍攝並上傳公開網路分享及商用
       <span className="text-red-500"> *</span>
     </p>
     <div className="grid grid-cols-2 gap-2">
