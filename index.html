@@ -305,7 +305,8 @@ const buildBoardingRows = (serviceType, formData) => {
       emailRow('點心', joinFilled(formData.snackHas, formData.snackType)),
       emailRow('保健品', joinFilled(formData.supplementHas, formData.supplementNote)),
       emailRow('特殊照顧', joinFilled(formData.specialCareHas, formData.specialCareNote)),
-      emailRow('指定就醫醫院', formData.prefHospital)
+      emailRow('指定就醫醫院', formData.prefHospital),
+      emailRow('拍攝與公開／商用同意', formData.agreePhotoCommercial)
     ].join('');
   }
 
@@ -346,7 +347,8 @@ const buildBoardingHealthRows = (formData) => {
     emailRow('是否懷孕', formData.boardingPregnant),
     emailRow('延時費用同意', formData.boardingLateFeeAck),
     emailRow('已理解非24小時旅館', formData.boardingNot24hAck),
-    emailRow('緊急就醫同意', formData.boardingMedicalConsent)
+    emailRow('緊急就醫同意', formData.boardingMedicalConsent),
+    emailRow('拍攝與公開／商用同意', formData.agreePhotoCommercial)
   ].join('');
 };
 
@@ -391,7 +393,8 @@ const buildContractEmailHtml = ({
     ? [
         emailRow('服務類型', formData.groomingService),
         emailRow('毛長類型', formData.groomingCoat),
-        emailRow('加購項目', formData.groomingAddons)
+        emailRow('加購項目', formData.groomingAddons),
+        emailRow('拍攝與公開／商用同意', formData.agreePhotoCommercial)
       ].join('')
     : buildBoardingRows(serviceType, formData);
 
@@ -1091,7 +1094,7 @@ chip: '', chipNum: '', behavior: [], behaviorOther: '',
       healthHistory: '', healthHistoryItems: [], healthHistoryOther: '', healthNote: '',
       prefHospital: '',
       groomingCoat: '', groomingService: '', groomingAddons: [],
-      agreeTerms: false, agreeHighRisk: false,
+      agreeTerms: false, agreeHighRisk: false, agreePhotoCommercial: false,
       lineConfirmed: false ,serviceType: '',
       roomType: '',
       boardingStartDate: '',
@@ -1517,6 +1520,7 @@ const validateBoardingHealth = () => {
 
   if (!formData.boardingNot24hAck) missing.push('not24h');
   if (!formData.boardingMedicalConsent) missing.push('medicalConsent');
+  if (!formData.agreePhotoCommercial) missing.push('photoCommercial');
 
   setMissingBoarding(missing); // 👈 這行關鍵：直接顯示紅框
   return missing;
@@ -1575,6 +1579,8 @@ const validateHomecareFields = () => {
     missing.push('specialCareNote');
   }
 
+  if (!formData.agreePhotoCommercial) missing.push('photoCommercial');
+
   setMissingBoarding(missing);
   return missing;
 };
@@ -1628,6 +1634,10 @@ if (emailRaw && !isValidEmail(emailRaw)) {
   }
   if (!formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk)) {
     alert('請先完成條款與高風險同意');
+    return;
+  }
+  if ((type === 'grooming' || type === 'boarding') && !formData.agreePhotoCommercial) {
+    alert('請勾選：同意無償給店家拍攝並上傳公開網路分享及商用');
     return;
   }
 
@@ -2769,6 +2779,36 @@ return;
       )}
     </div>
 
+    {/* 拍攝／公開／商用同意 */}
+    <div className={`${isMissing('photoCommercial') ? 'field-missing rounded-2xl p-3' : ''}`}>
+      <button
+        type="button"
+        onClick={() => setField({ agreePhotoCommercial: !formData.agreePhotoCommercial }, ['photoCommercial'])}
+        className={`w-full flex items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all text-left ${
+          formData.agreePhotoCommercial
+            ? 'bg-green-50 border-green-200'
+            : `bg-white border-milk-soft ${isMissing('photoCommercial') ? 'btn-missing' : ''}`
+        }`}
+      >
+        <div className={`mt-0.5 w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 ${
+          formData.agreePhotoCommercial
+            ? 'bg-green-500 border-green-500 text-white'
+            : 'bg-white border-milk'
+        }`}>
+          {formData.agreePhotoCommercial ? <span className="text-sm font-black leading-none">✓</span> : null}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm text-ink leading-relaxed">
+            同意無償給店家拍攝並上傳公開網路分享及商用
+            <span className="text-red-500"> *</span>
+          </p>
+          <p className="text-xs text-sub mt-1">
+            {formData.agreePhotoCommercial ? '已勾選同意' : '送出前請點此勾選'}
+          </p>
+        </div>
+      </button>
+    </div>
+
     <div className="rounded-2xl p-[1.5px] bg-gradient-to-br from-white/90 to-milk-soft/50 shadow-md">
       <div className="flex items-center gap-3 rounded-2xl px-5 py-3 bg-gradient-to-br from-white/95 to-milk-soft/20 border border-white/70 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_-1px_2px_rgba(0,0,0,0.08)]">
         <i data-lucide="circle-alert" className="w-5 h-5 text-milk-deep"></i>
@@ -3183,6 +3223,18 @@ return;
   </div>
 </div>
 
+{/* 13. 拍攝／公開／商用同意 */}
+<div className={`bg-white/70 border border-milk-soft rounded-2xl p-4 ${isMissing('photoCommercial')?'field-missing':''}`}>
+  <p className="font-bold mb-2">13．同意無償給店家拍攝並上傳公開網路分享及商用<span className="text-red-500">*</span></p>
+  <button
+    type="button"
+    onClick={() => setField({ agreePhotoCommercial: !formData.agreePhotoCommercial }, ['photoCommercial'])}
+    className={`btn-choice w-full ${formData.agreePhotoCommercial?'active':''} ${isMissing('photoCommercial')?'btn-missing':''}`}
+  >
+    {formData.agreePhotoCommercial ? '✅ 我已同意' : '我已同意（請點擊勾選）'}
+  </button>
+</div>
+
     </div>
   </div>
 )}
@@ -3274,6 +3326,35 @@ return;
     {formData.agreeHighRisk ? '已同意' : '務必詳閱'}
   </span>
 </button>
+
+{(type === 'grooming') && (
+  <button
+    type="button"
+    onClick={() => setFormData(prev => ({ ...prev, agreePhotoCommercial: !prev.agreePhotoCommercial }))}
+    className={`w-full flex items-start gap-3 p-4 rounded-2xl border-2 shadow-sm transition-all text-left ${
+      formData.agreePhotoCommercial
+        ? 'bg-green-50 border-green-200'
+        : 'bg-white border-milk-soft'
+    }`}
+  >
+    <div className={`mt-0.5 w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 ${
+      formData.agreePhotoCommercial
+        ? 'bg-green-500 border-green-500 text-white'
+        : 'bg-white border-milk'
+    }`}>
+      {formData.agreePhotoCommercial ? <span className="text-sm font-black leading-none">✓</span> : null}
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="font-bold text-sm text-ink leading-relaxed">
+        同意無償給店家拍攝並上傳公開網路分享及商用
+        <span className="text-red-500"> *</span>
+      </p>
+      <p className="text-xs text-sub mt-1">
+        {formData.agreePhotoCommercial ? '已勾選同意' : '送出前請點此勾選'}
+      </p>
+    </div>
+  </button>
+)}
           </div>
         </div>
 
@@ -3329,7 +3410,7 @@ alert(type === 'boarding' ? '請先閱讀並同意住宿條款' : '請先閱讀�
   className={`py-4 rounded-2xl font-bold shadow-lg transition-all ${
     isSubmitting 
       ? 'bg-gray-300 text-white cursor-not-allowed' 
-      : (!formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || !sigImage)
+      : (!formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || ((type === 'grooming' || type === 'boarding') && !formData.agreePhotoCommercial) || !sigImage)
         ? 'bg-gray-300 text-white'
         : 'bg-milk-deep text-white'
   }`} 

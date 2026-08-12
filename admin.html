@@ -1068,6 +1068,7 @@ const Row = ({ label, value }) => {  if (!isDisplayable(value)) return null;
                 <Row label="美容服務" value={row.grooming_service} />
                 <Row label="毛長類型" value={row.grooming_coat} />
                 <Row label="加購項目" value={row.grooming_addons} />
+                <Row label="拍攝與公開／商用同意" value={row.agree_photo_commercial} />
               </Block>
             </div>
           )}
@@ -1113,6 +1114,7 @@ const Row = ({ label, value }) => {  if (!isDisplayable(value)) return null;
                 <Row label="延時費用同意" value={row.boarding_late_fee_ack} />
                 <Row label="理解非24小時旅館" value={row.boarding_not24h_ack} />
                 <Row label="緊急就醫同意" value={row.boarding_medical_consent} />
+                <Row label="拍攝與公開／商用同意" value={row.agree_photo_commercial} />
               </Block>
             </div>
           )}
@@ -1136,6 +1138,7 @@ const Row = ({ label, value }) => {  if (!isDisplayable(value)) return null;
                 <Row label="保健品備註" value={row.supplement_note} />
                 <Row label="特殊照顧" value={row.special_care_has} />
                 <Row label="特殊照顧備註" value={row.special_care_note} />
+                <Row label="拍攝與公開／商用同意" value={row.agree_photo_commercial} />
               </Block>
             </div>
           )}
@@ -1326,6 +1329,9 @@ const fetchAll = async () => {
         Array.isArray(r.grooming_addons) ? r.grooming_addons :
         (Array.isArray(raw.grooming_addons) ? raw.grooming_addons :
         (Array.isArray(raw.groomingAddons) ? raw.groomingAddons : [])),
+      agree_photo_commercial:
+        raw.agreePhotoCommercial === true ? true :
+        raw.agreePhotoCommercial === false ? false : null,
 
       // ✅ 附件與簽名
       sig_image: r.sig_image || raw.sigImage || "",
@@ -1409,6 +1415,9 @@ raw
       homecare_time3: raw.homecareTime3 || "",
       special_care_has: raw.specialCareHas || "",
       special_care_note: r.special_care_note || raw.specialCareNote || raw.special_care_note || "",
+      agree_photo_commercial:
+        raw.agreePhotoCommercial === true ? true :
+        raw.agreePhotoCommercial === false ? false : null,
 
       // ✅ 入住健康與規範
       boarding_health_ok: raw.boardingHealthOk || "",
