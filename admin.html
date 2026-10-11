@@ -1069,6 +1069,7 @@ const Row = ({ label, value }) => {  if (!isDisplayable(value)) return null;
                 <Row label="毛長類型" value={row.grooming_coat} />
                 <Row label="加購項目" value={row.grooming_addons} />
                 <Row label="拍攝與公開／商用意願" value={row.agree_photo_commercial} />
+                <Row label="是否同意美容完後餵食肉泥" value={row.grooming_churu_consent} />
               </Block>
             </div>
           )}
@@ -1333,6 +1334,7 @@ const fetchAll = async () => {
         raw.agreePhotoCommercial === true ? "同意" :
         raw.agreePhotoCommercial === false ? "不同意" :
         (raw.agreePhotoCommercial || ""),
+      grooming_churu_consent: raw.groomingChuruConsent || "",
 
       // ✅ 附件與簽名
       sig_image: r.sig_image || raw.sigImage || "",

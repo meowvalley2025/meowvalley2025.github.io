@@ -394,7 +394,8 @@ const buildContractEmailHtml = ({
         emailRow('服務類型', formData.groomingService),
         emailRow('毛長類型', formData.groomingCoat),
         emailRow('加購項目', formData.groomingAddons),
-        emailRow('拍攝與公開／商用意願', formData.agreePhotoCommercial)
+        emailRow('拍攝與公開／商用意願', formData.agreePhotoCommercial),
+        emailRow('是否同意美容完後餵食肉泥', formData.groomingChuruConsent)
       ].join('')
     : buildBoardingRows(serviceType, formData);
 
@@ -1094,6 +1095,7 @@ chip: '', chipNum: '', behavior: [], behaviorOther: '',
       healthHistory: '', healthHistoryItems: [], healthHistoryOther: '', healthNote: '',
       prefHospital: '',
       groomingCoat: '', groomingService: '', groomingAddons: [],
+      groomingChuruConsent: '',
       agreeTerms: false, agreeHighRisk: false, agreePhotoCommercial: '',
       lineConfirmed: false ,serviceType: '',
       roomType: '',
@@ -1638,6 +1640,11 @@ if (emailRaw && !isValidEmail(emailRaw)) {
   }
   if ((type === 'grooming' || type === 'boarding') && !formData.agreePhotoCommercial) {
     alert('請選擇：同意或不同意「無償給店家拍攝並上傳公開網路分享及商用」');
+    return;
+  }
+  if (type === 'grooming' && !formData.groomingChuruConsent) {
+    setMissingBoarding(prev => prev.includes('groomingChuru') ? prev : [...prev, 'groomingChuru']);
+    alert('請選擇：是或否「是否同意美容完後餵食肉泥」');
     return;
   }
 
@@ -3250,7 +3257,49 @@ return;
 
         <div className="bg-orange-50/40 border border-orange-100 rounded-[24px] p-5 mb-5">
           <div className="space-y-4">
-            
+
+{(type === 'grooming') && (
+  <div className={`w-full p-4 rounded-2xl border-2 ${isMissing('photoCommercial') ? 'border-red-200 bg-red-50/40' : 'border-milk-soft bg-white'}`}>
+    <p className="font-bold text-sm text-ink leading-relaxed mb-3">
+      無償給店家拍攝並上傳公開網路分享及商用
+      <span className="text-red-500"> *</span>
+    </p>
+    <div className="grid grid-cols-2 gap-2">
+      {['同意','不同意'].map(val => (
+        <button
+          key={val}
+          type="button"
+          onClick={() => setField({ agreePhotoCommercial: val }, ['photoCommercial'])}
+          className={`btn-choice ${formData.agreePhotoCommercial===val?'active':''} ${isMissing('photoCommercial')?'btn-missing':''}`}
+        >
+          {val}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+
+{(type === 'grooming') && (
+  <div className={`w-full p-4 rounded-2xl border-2 ${isMissing('groomingChuru') ? 'border-red-200 bg-red-50/40' : 'border-milk-soft bg-white'}`}>
+    <p className="font-bold text-sm text-ink leading-relaxed mb-3">
+      是否同意美容完後餵食肉泥
+      <span className="text-red-500"> *</span>
+    </p>
+    <div className="grid grid-cols-2 gap-2">
+      {['是','否'].map(val => (
+        <button
+          key={val}
+          type="button"
+          onClick={() => setField({ groomingChuruConsent: val }, ['groomingChuru'])}
+          className={`btn-choice ${formData.groomingChuruConsent===val?'active':''} ${isMissing('groomingChuru')?'btn-missing':''}`}
+        >
+          {val}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+
             {/* 美容服務條款按鈕 */}
             <button
               type="button"
@@ -3316,27 +3365,6 @@ return;
     {formData.agreeHighRisk ? '已同意' : '務必詳閱'}
   </span>
 </button>
-
-{(type === 'grooming') && (
-  <div className={`w-full p-4 rounded-2xl border-2 ${isMissing('photoCommercial') ? 'border-red-200 bg-red-50/40' : 'border-milk-soft bg-white'}`}>
-    <p className="font-bold text-sm text-ink leading-relaxed mb-3">
-      無償給店家拍攝並上傳公開網路分享及商用
-      <span className="text-red-500"> *</span>
-    </p>
-    <div className="grid grid-cols-2 gap-2">
-      {['同意','不同意'].map(val => (
-        <button
-          key={val}
-          type="button"
-          onClick={() => setField({ agreePhotoCommercial: val }, ['photoCommercial'])}
-          className={`btn-choice ${formData.agreePhotoCommercial===val?'active':''} ${isMissing('photoCommercial')?'btn-missing':''}`}
-        >
-          {val}
-        </button>
-      ))}
-    </div>
-  </div>
-)}
           </div>
         </div>
 
@@ -3392,7 +3420,7 @@ alert(type === 'boarding' ? '請先閱讀並同意住宿條款' : '請先閱讀�
   className={`py-4 rounded-2xl font-bold shadow-lg transition-all ${
     isSubmitting 
       ? 'bg-gray-300 text-white cursor-not-allowed' 
-      : (!formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || ((type === 'grooming' || type === 'boarding') && !formData.agreePhotoCommercial) || !sigImage)
+      : (!formData.agreeTerms || (isHighRisk && !formData.agreeHighRisk) || ((type === 'grooming' || type === 'boarding') && !formData.agreePhotoCommercial) || (type === 'grooming' && !formData.groomingChuruConsent) || !sigImage)
         ? 'bg-gray-300 text-white'
         : 'bg-milk-deep text-white'
   }`} 
